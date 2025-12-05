@@ -47,19 +47,32 @@ def _check_api_key():
     return False, (jsonify({'status': 'error', 'message': 'Unauthorized (missing/invalid X-API-KEY)'}), 401)
 
 
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # pass through HTTP errors
+    if isinstance(e, HTTPException):
+        return e
+    # now you're handling non-HTTP exceptions only
+    return jsonify({"status": "error", "message": str(e), "type": type(e).__name__}), 500
+
+from werkzeug.exceptions import HTTPException
+
 @app.route('/health', methods=['GET'])
 def health():
     """Lightweight health check — doesn't require login."""
-    ok, err = _check_api_key()
-    if not ok:
-        return err
     # ensure DB exists
+    db_status = "ok"
     try:
         init_db()
-    except Exception:
-        pass
-    return jsonify({"status": "ok", "message": "play_api up", "db": os.getenv('PLAY_DB_PATH', 'play_state.db')})
-
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
+    return jsonify({
+        "status": "ok", 
+        "message": "play_api up", 
+        "db": db_status
+    })
 
 @app.route('/scrape_sales', methods=['POST'])
 def scrape_sales():
@@ -90,7 +103,8 @@ def send_request():
     body = request.get_json(force=True)
     profiles: List[str] = body.get('profiles', [])
     note: str = body.get('note', '')
-    headful = bool(body.get('headful', True))
+    # Default to HEADLESS (headful=False) for production stability
+    headful = bool(body.get('headful', False))
     dry_run = bool(body.get('dry_run', False))
     force = bool(body.get('force', False))
 
@@ -199,7 +213,7 @@ def check_acceptance():
         return err
     body = request.get_json(force=True)
     profiles = body.get('profiles', [])
-    headful = bool(body.get('headful', True))
+    headful = bool(body.get('headful', False))
     results = []
 
     from playwright.sync_api import sync_playwright
@@ -212,6 +226,10 @@ def check_acceptance():
                 print("Please resolve verification and press Enter in the terminal to continue.")
                 input()
             else:
+                try:
+                    browser.close()
+                except:
+                    pass
                 return jsonify({"status": "error", "message": "Login failed"}), 400
 
         for profile in profiles:
@@ -246,7 +264,7 @@ def warmup():
     body = request.get_json(force=True)
     profiles = body.get('profiles', [])
     max_actions = int(body.get('max', 5))
-    headful = bool(body.get('headful', True))
+    headful = bool(body.get('headful', False))
     comment_preview = bool(body.get('comment_preview', True))
     post_comments = bool(body.get('post_comments', False))
     dry_run = bool(body.get('dry_run', False))
