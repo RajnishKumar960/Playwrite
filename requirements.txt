@@ -1,0 +1,10 @@
+playwright
+pytest
+pytest-playwright
+python-dotenv
+gspread
+google-auth
+Flask
+waitress
+pyngrok
+openai
