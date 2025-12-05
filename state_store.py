@@ -13,7 +13,7 @@ import sqlite3
 import time
 from typing import Optional, List, Dict, Any
 
-DEFAULT_DB = os.getenv('PLAY_DB_PATH', 'play_state.db')
+DEFAULT_DB = os.getenv('PLAY_DB_PATH', '/tmp/play_state.db')
 
 
 def _conn(db_path: Optional[str] = None) -> sqlite3.Connection:

@@ -124,7 +124,7 @@ def send_request():
             results.append({"profile": profile, "status": "would_send", "note": bool(note)})
         return _resp_ok({"results": results})
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headful, slow_mo=40)
+        browser = p.chromium.launch(headless=not headful, slow_mo=40, args=['--disable-dev-shm-usage', '--no-sandbox'])
         context = browser.new_context(viewport={"width": 1200, "height": 900})
         page = context.new_page()
         # login
@@ -218,7 +218,7 @@ def check_acceptance():
 
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headful, slow_mo=40)
+        browser = p.chromium.launch(headless=not headful, slow_mo=40, args=['--disable-dev-shm-usage', '--no-sandbox'])
         context = browser.new_context(viewport={"width": 1200, "height": 900})
         page = context.new_page()
         if not login(page, os.getenv('LINKEDIN_EMAIL'), os.getenv('LINKEDIN_PASSWORD')):
