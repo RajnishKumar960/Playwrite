@@ -1,69 +1,72 @@
+
 """OpenAI-powered comment generation for LinkedIn posts."""
 import os
 from openai import OpenAI
 
-def generate_openai_comment(post_text: str, author_name: str | None = None) -> str:
-    """Generate a professional, contextual comment using OpenAI.
+def generate_openai_comment(post_input, author_input=None) -> list[str]:
+    """Generate professional, contextual comments using OpenAI.
     
     Args:
-        post_text: The content of the LinkedIn post
-        author_name: The name of the post author (optional)
+        post_input: dict (post_item) or str (post_text)
+        author_input: str (author name), optional if post_input is dict
     
     Returns:
-        A professional, contextual comment (1-2 sentences)
+        List[str]: A list of candidate comments (usually 3).
     """
+    if isinstance(post_input, dict):
+        post_text = post_input.get("text", "")
+        author_name = post_input.get("author", "")
+    else:
+        post_text = str(post_input)
+        author_name = author_input
+
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        # Fallback to simple comment if no API key
-        return "Great insights! Thanks for sharing this."
+        return ["Great insights! Thanks for sharing."]
     
     try:
         client = OpenAI(api_key=api_key)
         
-        # Create a prompt for generating a professional LinkedIn comment
-        prompt = f"""You are a professional LinkedIn user. Generate a short, professional comment (1-2 sentences, max 150 characters) for the following LinkedIn post.
+        prompt = f"""You are a professional LinkedIn user. Generate 3 DISTINCT, professional, and short comments (1-2 sentences) for the following LinkedIn post.
 
 Rules:
-- Be professional and positive
-- Be specific to the post content (not generic)
-- Do NOT use emojis
-- Do NOT ask questions
-- Do NOT promote yourself
-- Keep it concise and genuine
-- If the author name is provided, you may optionally personalize it
+- Output only the 3 comments, separated by "|||"
+- Be professional, positive, and specific
+- No emojis
+- No questions
+- No self-promotion
+- If author name ({author_name}) is known, you can occasionally use it.
 
 Post content:
-{post_text[:500]}
-
-{f'Author: {author_name}' if author_name else ''}
-
-Generate only the comment text, nothing else:"""
+{post_text[:600]}
+"""
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a professional LinkedIn commenter. Generate concise, professional, and contextual comments."},
+                {"role": "system", "content": "You are a helpful professional assistant."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=100,
+            max_tokens=150,
             temperature=0.7
         )
         
-        comment = response.choices[0].message.content.strip()
+        content = response.choices[0].message.content.strip()
+        candidates = [c.strip() for c in content.split("|||") if c.strip()]
         
-        # Remove quotes if OpenAI wrapped it
-        if comment.startswith('"') and comment.endswith('"'):
-            comment = comment[1:-1]
-        if comment.startswith("'") and comment.endswith("'"):
-            comment = comment[1:-1]
-        
-        # Ensure it's not too long
-        if len(comment) > 200:
-            comment = comment[:197] + "..."
-        
-        return comment
+        # Cleanup quotes
+        clean_candidates = []
+        for c in candidates:
+            if c.startswith('"') and c.endswith('"'):
+                c = c[1:-1]
+            if len(c) > 5:
+                clean_candidates.append(c)
+                
+        if not clean_candidates:
+            return ["Thanks for sharing!"]
+            
+        return clean_candidates[:3]
         
     except Exception as e:
-        print(f"OpenAI comment generation failed: {e}")
-        # Fallback to simple comment
-        return "Great insights! Thanks for sharing this."
+        print(f"OpenAI generation failed: {e}")
+        return ["Great point!"]

@@ -65,7 +65,9 @@ def like_and_comment(page, post):
     author = post["author"]
     
     # Safety check
-    if not safe_to_like(text, author):
+    is_safe, reason = safe_to_like(text, author)
+    if not is_safe:
+        print(f"Skipping: {reason}")
         return False
     
     # Find like button - use force to avoid opening post
@@ -89,7 +91,8 @@ def like_and_comment(page, post):
     
     # Generate and post comment
     try:
-        comment = generate_openai_comment(text, author)
+        candidates = generate_openai_comment(text, author)
+        comment = candidates[0] if candidates else "Great post!"
         print(f"  Comment: {comment[:60]}...")
         
         # Click comment button (force=True to stay in feed)
