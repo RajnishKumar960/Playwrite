@@ -5,6 +5,7 @@ python-dotenv
 gspread
 google-auth
 Flask
-waitresspython paired_agent.py --max 10 --headful
+waitress
+gunicorn
 pyngrok
 openai
