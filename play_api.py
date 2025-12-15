@@ -28,7 +28,7 @@ DAILY_MAX_REQUESTS = int(os.getenv("DAILY_MAX_REQUESTS", "30"))
 
 
 from paired_agent import run_campaign_logic
-from lib.comments import make_comment_text
+from lib.openai_comments import generate_openai_comment as make_comment_text
 from lib.auth import login
 
 
