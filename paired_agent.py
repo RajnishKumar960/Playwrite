@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 import argparse
 import os
 import random
-from lib.utils import human_sleep
+from lib.utils import human_sleep, smooth_scroll
 from lib.safety import safe_to_like, safe_to_comment
 from lib.auth import login
 from lib.openai_comments import generate_openai_comment
@@ -188,13 +188,75 @@ def process_post(page, post_item, should_comment=False, comment_preview=False, s
             print(f"Could not post comment: {e}")
     return True
 
+def run_campaign_logic(page, max_likes, comment_preview=False, dry_run=False, safe_mode=False):
+    """Core logic to run the engagement campaign on a provided page object."""
+    liked = 0
+    attempts = 0
+    while liked < max_likes and attempts < max_likes * 12:
+        attempts += 1
+        posts = find_posts_on_page(page)
+        queue = []
+        for pitem in posts:
+            if has_processed(pitem["id"]):
+                continue
+            author_text = pitem.get("author", "")
+            if "1st" not in author_text and " 1st" not in pitem.get("text", ""):
+                mark_processed(pitem["id"])  # mark as seen/skipped
+                continue
+            queue.append(pitem)
+        for pitem in queue:
+            if liked >= max_likes:
+                break
+            should_comment = (liked < 2) or (random.random() < 0.8)
+            if dry_run:
+                print(f"[DRY RUN] Would like post {pitem['id']}, comment={should_comment}")
+                liked += 1
+                mark_processed(pitem["id"])
+                continue
+            did = process_post(page, pitem, should_comment=should_comment, comment_preview=comment_preview, safe_mode=safe_mode)
+            if did:
+                liked += 1
+                mark_processed(pitem["id"])
+                wait_sec = liked + 2
+                print(f"Liked {liked} — waiting {wait_sec}s")
+                human_sleep(wait_sec)
+        if liked < max_likes:
+            try:
+                if page.is_closed():
+                    print("Page was closed, ending run.")
+                    break
+                x = random.randint(100, 1200)
+                y = random.randint(100, 800)
+                page.mouse.move(x, y)
+                human_sleep(0.5)
+                try:
+                    profile_el = page.locator("span.feed-shared-actor__name, a.feed-shared-actor__name-link").first
+                    if profile_el.count() > 0:
+                        profile_el.hover()
+                        human_sleep(0.3)
+                except Exception:
+                    pass
+                scroll_factor = random.uniform(0.8, 0.9)
+                # Use smooth scroll instead of jump
+                scroll_distance = int(page.viewport_size['height'] * scroll_factor)
+                smooth_scroll(page, scroll_distance)
+                human_sleep(random.uniform(1.2, 2.8))
+            except Exception as e:
+                print(f"Error during scroll: {e}")
+                break
+    return liked
+
 def run_paired(max_likes: int, headful: bool, comment_preview: bool = False, dry_run: bool = False, safe_mode: bool = False):
     if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
         raise SystemExit("Missing LINKEDIN_EMAIL/LINKEDIN_PASSWORD in .env — set them and try again.")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not headful, slow_mo=50)
-        context = browser.new_context(viewport={"width": 1280, "height": 900})
+        # Try to load storage state if it exists
+        storage_state = "auth.json" if os.path.exists("auth.json") else None
+        context = browser.new_context(viewport={"width": 1280, "height": 900}, storage_state=storage_state)
         page = context.new_page()
+        
+        # If we loaded state, we might be logged in. Login function handles verification.
         if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
             if headful:
                 print("Login did not automatically reach the feed. If LinkedIn asked for 2FA/captcha, please complete the verification in the opened browser. Press Enter here once you've completed it to continue.")
@@ -221,58 +283,9 @@ def run_paired(max_likes: int, headful: bool, comment_preview: bool = False, dry
             pass
         human_sleep(3)
         print("Starting paired scanning/acting on feed (1st-degree connections only).")
-        liked = 0
-        attempts = 0
-        while liked < max_likes and attempts < max_likes * 12:
-            attempts += 1
-            posts = find_posts_on_page(page)
-            queue = []
-            for pitem in posts:
-                if has_processed(pitem["id"]):
-                    continue
-                author_text = pitem.get("author", "")
-                if "1st" not in author_text and " 1st" not in pitem.get("text", ""):
-                    mark_processed(pitem["id"])  # mark as seen/skipped
-                    continue
-                queue.append(pitem)
-            for pitem in queue:
-                if liked >= max_likes:
-                    break
-                should_comment = (liked < 2) or (random.random() < 0.8)
-                if dry_run:
-                    print(f"[DRY RUN] Would like post {pitem['id']}, comment={should_comment}")
-                    liked += 1
-                    mark_processed(pitem["id"])
-                    continue
-                did = process_post(page, pitem, should_comment=should_comment, comment_preview=comment_preview, safe_mode=safe_mode)
-                if did:
-                    liked += 1
-                    mark_processed(pitem["id"])
-                    wait_sec = liked + 2
-                    print(f"Liked {liked} — waiting {wait_sec}s")
-                    human_sleep(wait_sec)
-            if liked < max_likes:
-                try:
-                    if page.is_closed():
-                        print("Page was closed, ending run.")
-                        break
-                    x = random.randint(100, 1200)
-                    y = random.randint(100, 800)
-                    page.mouse.move(x, y)
-                    human_sleep(0.5)
-                    try:
-                        profile_el = page.locator("span.feed-shared-actor__name, a.feed-shared-actor__name-link").first
-                        if profile_el.count() > 0:
-                            profile_el.hover()
-                            human_sleep(0.3)
-                    except Exception:
-                        pass
-                    scroll_factor = random.uniform(0.8, 0.9)
-                    page.evaluate(f"window.scrollBy(0, window.innerHeight * {scroll_factor})")
-                    human_sleep(random.uniform(1.2, 2.8))
-                except Exception as e:
-                    print(f"Error during scroll: {e}")
-                    break
+        
+        liked = run_campaign_logic(page, max_likes, comment_preview, dry_run, safe_mode)
+        
         print(f"Paired run finished — liked {liked}/{max_likes}. Closing browser.")
         try:
             browser.close()
