@@ -58,6 +58,15 @@ def handle_exception(e):
 
 from werkzeug.exceptions import HTTPException
 
+@app.route('/', methods=['GET'])
+def index():
+    """Root endpoint to verify server is running."""
+    return jsonify({
+        "status": "running",
+        "service": "LinkedIn Playwright API",
+        "endpoints": ["/health", "/scrape_sales", "/send_request", "/check_acceptance", "/warmup"]
+    })
+
 @app.route('/health', methods=['GET'])
 def health():
     """Lightweight health check — doesn't require login."""
