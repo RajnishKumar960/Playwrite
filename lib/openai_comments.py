@@ -31,14 +31,14 @@ def generate_openai_comment(post_input, author_input=None) -> dict:
     import random
 
     # User requested COMPULSORY comments with USERNAME MENTION.
-    # Fallback templates now include placeholders for the author's name.
+    # Fallback templates - concise 2-line professional comments.
     
     fallback_templates = [
-        "Thanks for sharing this insight, {name}.",
-        "Great update, {name}. Wishing you continued success.",
-        "Valuable perspective, {name}. Thanks for posting.",
-        "Appreciate you sharing this, {name}.",
-        "Well said, {name}."
+        "Great insight, {name}. This resonates with my experience.",
+        "Well said, {name}. Appreciate you sharing this perspective.",
+        "Valuable update, {name}. Wishing you continued success.",
+        "Thanks for sharing, {name}. This is truly insightful.",
+        "Excellent point, {name}. This is worth reflecting on."
     ]
     import random
 
@@ -114,22 +114,22 @@ Your comments MUST be:
 3. TONE & STYLE:
    ✓ Warm yet professional
    ✓ Confident yet humble
-   ✓ Enthusiastic yet measured
    ✗ NO generic praise ("Great post!", "Nice!")
    ✗ NO excessive emojis or casual slang
    ✗ NO marketing spam or self-promotion
    ✗ NO controversial questions or criticism
 
-4. LENGTH & FORMAT:
-   • 2-3 concise, impactful sentences
-   • Max 300 characters
-   • Natural, conversational flow
+4. LENGTH & FORMAT (CRITICAL):
+   • EXACTLY 2 short sentences only
+   • Maximum 150 characters total
+   • Concise and impactful
    • Professional punctuation
+   • NO questions - make statements only
 
-5. REPLY-WORTHY TACTICS:
-   ✓ Ask a thoughtful question related to their post
-   ✓ Share a complementary insight or perspective  
-   ✓ Reference an interesting point they made
+5. EXAMPLES OF GOOD 2-LINE COMMENTS:
+   ✓ "Great insight, [Author Name]. This resonates with my experience in the field."
+   ✓ "Well said, [Author Name]. The focus on fundamentals is key to success."
+   ✓ "Congratulations, [Author Name]! This is well-deserved recognition."
 
 OUTPUT FORMAT (MANDATORY JSON):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
