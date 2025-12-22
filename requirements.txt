@@ -1,11 +1,22 @@
-playwright
-pytest
-pytest-playwright
-python-dotenv
-gspread
-google-auth
-Flask
-waitress
-gunicorn
-pyngrok
-openai
+# Flask API Server
+flask==3.1.0
+gunicorn==21.2.0
+# werkzeug will be auto-installed by flask with compatible version
+
+# Environment & Configuration
+python-dotenv==1.0.0
+
+# Browser Automation
+playwright==1.49.0
+
+# Google Sheets Integration
+gspread==6.1.4
+google-auth==2.36.0
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+
+# OpenAI for Comment Generation
+openai==1.58.0
+
+# Utilities
+pyyaml==6.0.1

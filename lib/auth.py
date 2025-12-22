@@ -36,7 +36,43 @@ def login(page, email, password, storage_state_path="auth.json"):
     print("Logging in with credentials...")
     try:
         page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_selector("input[name='session_key']", timeout=60000)
+        
+        # Check if we got redirected to feed immediately (already logged in)
+        # We wait a bit longer because sometimes redirect takes time
+        try:
+            page.wait_for_url("**/feed/**", timeout=15000)
+            print("Redirected to feed directly. Already logged in.")
+            
+            # Save session for next time
+            try:
+                context = page.context
+                context.storage_state(path=storage_state_path)
+            except: 
+                pass
+            return True
+        except Exception:
+            # Double check URL manually
+            if "/feed/" in page.url:
+                 print("Redirected to feed (manual check). Already logged in.")
+                 return True
+            pass # Not on feed, proceed to login form
+
+        # Check for username field
+        try:
+            # First check if we are on the "Welcome Back" screen
+            # Look for "Sign in using another account"
+            another_account_btn = page.locator("text='Sign in using another account'")
+            if another_account_btn.is_visible():
+                print("Found 'Welcome Back' screen. Clicking 'Sign in using another account'...")
+                another_account_btn.click()
+                # Wait for form to appear
+                page.wait_for_selector("input[name='session_key']", timeout=10000)
+
+            page.wait_for_selector("input[name='session_key']", timeout=30000)
+        except Exception:
+            print(f"Login form not found. Current URL: {page.url}")
+            return False
+
         page.fill("input[name='session_key']", email)
         page.fill("input[name='session_password']", password)
         page.click("button[type='submit']")

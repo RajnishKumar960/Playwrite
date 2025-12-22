@@ -109,20 +109,18 @@ def process_post(page, post_item, should_comment=False, comment_preview=False, s
         return False
     # Comment handling
     if should_comment:
-        candidates = generate_openai_comment(post_item)
-        safe_candidates = []
-        for cand in candidates:
-            ok, score, reason = safe_to_comment(post_item, cand, safe_mode=safe_mode)
-            if ok:
-                safe_candidates.append((cand, score))
-        if not safe_candidates:
-            print("No safe comment candidates found; skipping comment.")
+        ai_decision = generate_openai_comment(post_item)
+        
+        action = ai_decision.get("action", "SKIP")
+        reason = ai_decision.get("reason", "Unknown")
+        comment_text = ai_decision.get("comment", "")
+        
+        if action == "SKIP":
+            print(f"AI decided to SKIP comment: {reason}")
             return True
-        comment_text = max(safe_candidates, key=lambda x: x[1])[0]
+            
         if comment_preview:
-            print("[Comment preview]")
-            for idx, (cmt, sc) in enumerate(safe_candidates, 1):
-                print(f"{idx}. ({sc:.2f}) {cmt}")
+            print(f"[Comment preview] {comment_text}")
             return True
         # Post the comment
         try:

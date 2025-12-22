@@ -10,14 +10,18 @@ def human_sleep(seconds: float):
         sleep_time = 0.1
     time.sleep(sleep_time)
 
-def smooth_scroll(page, distance: int, steps: int = 15, delay: float = 0.05):
-    """Scroll smoothly ensuring 'seamless' behavior."""
+def smooth_scroll(page, distance: int, steps: int = 30, delay: float = 0.02):
+    """Scroll smoothly ensuring 'seamless' behavior with natural variation."""
+    step_y = distance / steps
     for _ in range(steps):
-        # Scroll a fraction of the distance
-        step_y = distance / steps
-        # Add small random jitter to x/y to look human
-        page.mouse.wheel(0, step_y)
-        human_sleep(delay)
+        # Add slight randomness to scrolling speed and distance per step
+        variance = random.uniform(0.8, 1.2)
+        current_step = step_y * variance
+        
+        page.mouse.wheel(0, current_step)
+        
+        # Micro-sleeps with variation
+        time.sleep(max(0.005, delay * random.uniform(0.8, 1.5)))
 
 def normalize_text(s: str) -> str:
     """Normalize text to lowercase."""
