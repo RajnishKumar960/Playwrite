@@ -23,6 +23,10 @@ def navigate_to_profile(page: Page, profile_url: str, timeout: int = 15000) -> b
         True if navigation successful and profile loaded
     """
     try:
+        if page.is_closed():
+            print("Error: Targeted page is already closed.")
+            return False
+            
         # Normalize URL
         if not profile_url.startswith("http"):
             profile_url = f"https://{profile_url}"
@@ -411,6 +415,55 @@ def get_profile_name(page: Page) -> str:
             continue
     
     return ""
+
+
+def get_connection_degree(page: Page) -> str:
+    """
+    Detect the connection degree (1st, 2nd, 3rd) of the profile.
+    
+    Returns:
+        "1st", "2nd", "3rd", or "unknown"
+    """
+    try:
+        # Looking for indicators like "1st", "2nd", "3rd" near name or in top card
+        # LinkedIn often uses a span with class "dist-value" or similar
+        degree_selectors = [
+            "span.dist-value",
+            "span.distance-badge span.visually-hidden",
+            "span.p-connection-degree",
+            "span.pv-top-card-section__distance-badge",
+            "span.t-black--light.insider-badge",
+        ]
+        
+        for selector in degree_selectors:
+            try:
+                el = page.locator(selector)
+                if el.count() > 0:
+                    text = el.first.inner_text().lower()
+                    if "1st" in text: return "1st"
+                    if "2nd" in text: return "2nd"
+                    if "3rd" in text: return "3rd"
+            except Exception:
+                continue
+        
+        # Fallback: check page content for degree indicators near name
+        content = page.content()[:5000] # First 5k chars usually contain top card
+        if "1st degree connection" in content or "• 1st" in content:
+            return "1st"
+        if "2nd degree connection" in content or "• 2nd" in content:
+            return "2nd"
+        if "3rd degree connection" in content or "• 3rd" in content:
+            return "3rd"
+            
+        # Another indicator: Presence of "Message" button usually means 1st
+        message_btn = page.locator("button:has-text('Message'), a:has-text('Message')").nth(0)
+        if message_btn.count() > 0:
+            return "1st"
+            
+    except Exception:
+        pass
+        
+    return "unknown"
 
 
 def _parse_count(text: str) -> int:

@@ -38,6 +38,8 @@ def init_lead_db():
                 company TEXT,
                 sheet_row INTEGER,
                 status TEXT DEFAULT 'pending',
+                connection_status TEXT DEFAULT 'not_sent',
+                last_connection_check TEXT,
                 total_engagements INTEGER DEFAULT 0,
                 campaign_start_date TEXT,
                 last_engagement_date TEXT,
@@ -75,6 +77,20 @@ def init_lead_db():
             )
         """)
         
+        conn.commit()
+        
+        # Migration: Add connection_status and last_connection_check if missing
+        cursor.execute("PRAGMA table_info(leads)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'connection_status' not in columns:
+            print("Migrating DB: Adding connection_status column to leads table")
+            cursor.execute("ALTER TABLE leads ADD COLUMN connection_status TEXT DEFAULT 'not_sent'")
+            
+        if 'last_connection_check' not in columns:
+            print("Migrating DB: Adding last_connection_check column to leads table")
+            cursor.execute("ALTER TABLE leads ADD COLUMN last_connection_check TEXT")
+            
         conn.commit()
         conn.close()
 
@@ -467,6 +483,44 @@ def has_engaged_post(post_text_hash: str) -> bool:
         conn.close()
         
         return result
+
+
+def update_connection_status(lead_id: int, status: str):
+    """Update connection status for a lead."""
+    with _lock:
+        conn = _get_connection()
+        cursor = conn.cursor()
+        
+        today = datetime.now().strftime("%Y-%m-%d")
+        cursor.execute("""
+            UPDATE leads SET 
+                connection_status = ?,
+                last_connection_check = ?
+            WHERE id = ?
+        """, (status, today, lead_id))
+        
+        conn.commit()
+        conn.close()
+
+
+def get_leads_to_check_connection(limit: int = 20) -> List[Dict]:
+    """Get leads whose connection status needs to be checked (pending)."""
+    with _lock:
+        conn = _get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, profile_url, name, connection_status
+            FROM leads
+            WHERE connection_status = 'pending'
+            ORDER BY last_connection_check ASC
+            LIMIT ?
+        """, (limit,))
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return [dict(row) for row in rows]
 
 
 def get_today_engagement_count() -> int:

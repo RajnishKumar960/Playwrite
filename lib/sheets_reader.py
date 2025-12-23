@@ -115,7 +115,7 @@ def read_leads(
                 "profile_url": profile_url,
                 "name": record.get("name") or record.get("Name") or record.get("FullName") or record.get("Full Name") or "",
                 "company": record.get("company") or record.get("Company") or record.get("CurrentCompany") or record.get("Current Company") or "",
-                "status": record.get("status") or record.get("Status") or "pending",
+                "status": record.get("status") or record.get("Status") or "",
                 "last_engaged": record.get("last_engaged") or record.get("Last Engaged") or "",
                 "pain_points": record.get("pain_points") or record.get("Pain Points") or "",
                 "notes": record.get("notes") or record.get("Notes") or "",
@@ -185,6 +185,7 @@ def update_lead_status(
     status: str = None,
     pain_points: str = None,
     notes: str = None,
+    connection_status: str = None,
     increment_engagement: bool = True
 ) -> bool:
     """
@@ -247,6 +248,11 @@ def update_lead_status(
                 new_value = notes
             ws.update_cell(row_number, col_idx, new_value)
         
+        # Update connection_status column
+        if connection_status and "connection_status" in headers_lower:
+            col_idx = headers_lower.index("connection_status") + 1
+            ws.update_cell(row_number, col_idx, connection_status)
+        
         # Increment engagement count
         if increment_engagement and "engagement_count" in headers_lower:
             col_idx = headers_lower.index("engagement_count") + 1
@@ -280,7 +286,7 @@ def ensure_columns_exist(
     headers = ws.row_values(1)
     headers_lower = [h.lower().replace(" ", "_") for h in headers]
     
-    required_columns = ["status", "last_engaged", "pain_points", "engagement_count", "notes"]
+    required_columns = ["status", "connection_status", "last_engaged", "pain_points", "engagement_count", "notes"]
     
     for col in required_columns:
         if col not in headers_lower:

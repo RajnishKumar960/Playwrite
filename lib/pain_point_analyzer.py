@@ -61,16 +61,13 @@ def analyze_pain_points(
 Analyze this LinkedIn post for business pain points, challenges, or opportunities.
 
 PAIN POINT CATEGORIES:
-- hiring: Recruiting challenges, talent acquisition, team growth issues
-- scaling: Growth challenges, capacity issues, expansion problems
-- technology: Tech stack issues, tool needs, automation challenges
-- sales: Revenue challenges, pipeline issues, customer acquisition
-- operations: Process inefficiencies, workflow problems
-- leadership: Management challenges, culture issues, strategy problems
-- funding: Capital needs, investment challenges
-- product: Product development, market fit, customer feedback
-- marketing: Brand awareness, lead generation, content challenges
-- general: Other professional challenges
+- sales: Revenue challenges, pipeline issues, customer acquisition, sales process inefficiencies
+- marketing: Brand awareness, content strategy, social media presence, lead generation challenges
+- paid_promotion: Ad spend inefficiency, low ROI on ads, scaling ad campaigns
+- ai_agents: Manual workflow bottlenecks, repetitive tasks, need for AI automation/agents
+- web_development: Outdated website, poor conversion, mobile responsiveness issues, technical debt
+- outreach: Low response rates, booking meetings, finding quality leads, prospecting challenges
+- general: Other professional challenges or growth opportunities
 
 ANALYSIS RULES:
 1. Identify specific pain points mentioned or implied

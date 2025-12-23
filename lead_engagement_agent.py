@@ -54,7 +54,8 @@ from lib.sheets_reader import (
 from lib.profile_posts import (
     navigate_to_profile,
     get_recent_posts,
-    get_profile_name
+    get_profile_name,
+    get_connection_degree
 )
 from lib.pain_point_analyzer import (
     analyze_pain_points,
@@ -71,8 +72,10 @@ from lib.lead_store import (
     get_high_opportunity_leads,
     has_processed_lead_today,
     has_engaged_post,
-    get_today_engagement_count
+    get_today_engagement_count,
+    update_connection_status
 )
+from lib.connections import send_connection_request
 from state_store import has_processed, mark_processed
 
 # Load environment variables
@@ -363,33 +366,88 @@ def process_lead(
             sheet_row=row_number
         )
         
+        # --- NEW: Connection Handling ---
+        degree = get_connection_degree(page)
+        print(f"  Connection Degree: {degree}")
+        
+        is_connected = degree == "1st"
+        
+        # Update connection status in DB and Sheet
+        conn_status_val = "accepted" if is_connected else "pending" if "pending" in degree else "not_sent"
+        update_connection_status(lead_id, conn_status_val)
+        
+        if not is_connected and not dry_run:
+            # Send connection request if not sent yet
+            # Check if we should send (limit connections per day?)
+            # For now, let's just send if not 1st
+            if degree in ["2nd", "3rd", "unknown"]:
+                print(f"  → Sending connection request...")
+                req_result = send_connection_request(page, profile_url)
+                if req_result["status"] == "pending":
+                    update_connection_status(lead_id, "pending")
+                    if sheet_id and row_number:
+                        update_lead_status(sheet_id, row_number, connection_status="pending")
+        elif is_connected:
+            update_connection_status(lead_id, "accepted")
+            if sheet_id and row_number:
+                update_lead_status(sheet_id, row_number, connection_status="accepted")
+
+        # --- NEW: Adaptive Scraping (Deep Analysis) ---
+        # If connected, scrape more posts for deep analysis
+        scrape_max = 10 if is_connected else max_posts
+        if is_connected:
+            print(f"  🔍 Lead is connected! Performing deep analysis (max {scrape_max} posts)")
+        
+        # Get recent posts
+        posts = get_recent_posts(page, max_posts=scrape_max, max_days=7 if is_connected else 7)
+        result["posts_found"] = len(posts)
+        
+        if not posts:
+            print(f"  ○ No posts within 7 days - {'skipping engagement' if not is_connected else 'performing summary only'}")
+            if not is_connected:
+                result["success"] = True
+                result["error"] = "No recent posts (7 days)"
+                return result
+        
+        print(f"  Found {len(posts)} posts to analyze")
+        
         all_pain_points = []
         opportunity_scores = []
         engaged_one_post = False
         
         # RULE: Only engage with 1 post per lead (the first valid recent one)
+        # Deep analysis analyzes all, but only engages one.
         for i, post in enumerate(posts):
-            if engaged_one_post:
-                break  # Already engaged one post - move to next lead
+            # Only engage if we haven't yet and it's a "normal" run
+            should_engage = not engaged_one_post 
+            
+            if i > 0 and not is_connected:
+                break # Non-connected: only check first few
             
             print(f"\n  Analyzing post {i+1}/{len(posts)}...")
             
-            engagement = engage_with_post(
-                page,
-                post,
-                lead_name=lead_name,
-                dry_run=dry_run,
-                comment_preview=comment_preview,
-                safe_mode=safe_mode
-            )
-            
-            if engagement["success"] and not engagement.get("skipped_reason"):
-                result["posts_engaged"] += 1
-                engaged_one_post = True
-                print(f"  ✓ Engaged with 1 post - moving to next lead")
-            
-            # Record engagement in database
-            pain_analysis = engagement.get("pain_analysis") or {}
+            # If we don't engage, we still analyze for pain points
+            if not should_engage or (is_connected and i > 0):
+                # Just analyze
+                pain_analysis = analyze_pain_points(post.get("text", ""), lead_name)
+            else:
+                engagement = engage_with_post(
+                    page,
+                    post,
+                    lead_name=lead_name,
+                    dry_run=dry_run,
+                    comment_preview=comment_preview,
+                    safe_mode=safe_mode
+                )
+                pain_analysis = engagement.get("pain_analysis") or {}
+                
+                if engagement["success"] and not engagement.get("skipped_reason"):
+                    result["posts_engaged"] += 1
+                    engaged_one_post = True
+                    if not is_connected:
+                        print(f"  ✓ Engaged with 1 post - moving to next lead")
+                
+            # Aggregate pain points from all analyzed posts
             pain_points = pain_analysis.get("pain_points", []) if pain_analysis else []
             opp_score = pain_analysis.get("opportunity_score", 0) if pain_analysis else 0
             
@@ -397,26 +455,32 @@ def process_lead(
             if opp_score > 0:
                 opportunity_scores.append(opp_score)
             
-            if not dry_run and engagement["success"]:
+            # Record in DB (only if we actually engaged or if it's a deep analysis)
+            # Actually, record all analyzed posts in engagements table for history
+            if not dry_run:
+                action_name = "analyzed"
+                comment_val = None
+                if should_engage and i == 0:
+                    if engagement["success"] and not engagement.get("skipped_reason"):
+                        action_name = "engaged"
+                        comment_val = engagement.get("comment_text")
+                    elif engagement.get("skipped_reason"):
+                        action_name = "skipped"
+                
                 record_engagement(
                     lead_id=lead_id,
                     post_url=post.get("post_url"),
                     post_text=post.get("text"),
-                    action="engaged" if not engagement.get("skipped_reason") else "skipped",
-                    comment_text=engagement.get("comment_text"),
+                    action=action_name,
+                    comment_text=comment_val,
                     pain_points=pain_points,
                     opportunity_score=opp_score,
                     category=pain_analysis.get("category")
                 )
             
-            # If engaged, break - no need to check more posts
-            if engaged_one_post:
-                break
-            
-            # If skipped, try next post
-            if engagement.get("skipped_reason"):
-                human_sleep(1, 2)
-                continue
+            # Delay between analysis
+            if is_connected and i < len(posts) - 1:
+                human_sleep(0.5, 1.2)
         
         # Compile results
         result["pain_points"] = list(set(all_pain_points))
@@ -428,19 +492,19 @@ def process_lead(
         
         # Update Google Sheet
         if sheet_id and row_number and not dry_run:
-            pain_points_str = "; ".join(result["pain_points"][:5])
+            pain_points_str = "; ".join(result["pain_points"][:10]) # More for deep analysis
             update_lead_status(
                 sheet_id=sheet_id,
                 row_number=row_number,
                 status="engaged",
                 pain_points=pain_points_str,
-                notes=f"Score: {result['opportunity_score']:.2f}",
+                notes=f"Score: {result['opportunity_score']:.2f} | Degree: {degree}",
                 increment_engagement=True
             )
         
-        print(f"\n  ✓ Lead processed: {result['posts_engaged']} posts engaged")
+        print(f"\n  ✓ Lead processed: {result['posts_engaged']} posts engaged, {len(posts)} analyzed")
         if result["pain_points"]:
-            print(f"  📊 Pain points: {', '.join(result['pain_points'][:3])}")
+            print(f"  📊 Total Pain points discovered: {', '.join(result['pain_points'][:5])}")
         
     except Exception as e:
         result["error"] = str(e)
