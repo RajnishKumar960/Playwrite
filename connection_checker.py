@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import os
 import time
 import random
+from datetime import datetime, timedelta
 
 from lib.auth import login
 from lib.profile_posts import navigate_to_profile, get_connection_degree
@@ -22,7 +23,7 @@ LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
 LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
 
-def check_connections(headful: bool = False, limit: int = 10):
+def check_connections(headful: bool = False, limit: int = 10, duration_minutes: int = None):
     """Check connection status for pending leads."""
     leads = get_leads_to_check_connection(limit=limit)
     if not leads:
@@ -30,6 +31,10 @@ def check_connections(headful: bool = False, limit: int = 10):
         return
 
     print(f"Checking connection status for {len(leads)} leads...")
+    
+    # Set up duration tracking
+    start_time = datetime.now()
+    end_time = start_time + timedelta(minutes=duration_minutes) if duration_minutes else None
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not headful, slow_mo=50)
@@ -43,6 +48,11 @@ def check_connections(headful: bool = False, limit: int = 10):
             return
 
         for lead in leads:
+            # Check duration limit
+            if end_time and datetime.now() >= end_time:
+                print(f"\n⏱ Duration limit ({duration_minutes} min) reached. Stopping...")
+                break
+            
             lead_id = lead["id"]
             profile_url = lead["profile_url"]
             name = lead.get("name", profile_url)
@@ -77,6 +87,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--headful", action="store_true")
     parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--duration", type=int, default=None, help="Maximum duration in minutes")
     args = parser.parse_args()
     
-    check_connections(headful=args.headful, limit=args.limit)
+    check_connections(headful=args.headful, limit=args.limit, duration_minutes=args.duration)
+

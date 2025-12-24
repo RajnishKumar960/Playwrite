@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 import argparse
 import os
 import random
+from datetime import datetime, timedelta
 from lib.utils import human_sleep, smooth_scroll
 from lib.safety import safe_to_like, safe_to_comment
 from lib.auth import login
@@ -186,11 +187,19 @@ def process_post(page, post_item, should_comment=False, comment_preview=False, s
             print(f"Could not post comment: {e}")
     return True
 
-def run_campaign_logic(page, max_likes, comment_preview=False, dry_run=False, safe_mode=False):
+def run_campaign_logic(page, max_likes, comment_preview=False, dry_run=False, safe_mode=False, duration_minutes=None, start_time=None):
     """Core logic to run the engagement campaign on a provided page object."""
     liked = 0
     attempts = 0
+    if start_time is None:
+        start_time = datetime.now()
+    end_time = start_time + timedelta(minutes=duration_minutes) if duration_minutes else None
+    
     while liked < max_likes and attempts < max_likes * 12:
+        # Check duration limit
+        if end_time and datetime.now() >= end_time:
+            print(f"\n⏱ Duration limit ({duration_minutes} min) reached. Stopping...")
+            break
         attempts += 1
         posts = find_posts_on_page(page)
         queue = []
@@ -244,7 +253,7 @@ def run_campaign_logic(page, max_likes, comment_preview=False, dry_run=False, sa
                 break
     return liked
 
-def run_paired(max_likes: int, headful: bool, comment_preview: bool = False, dry_run: bool = False, safe_mode: bool = False):
+def run_paired(max_likes: int, headful: bool, comment_preview: bool = False, dry_run: bool = False, safe_mode: bool = False, duration_minutes: int = None):
     if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
         raise SystemExit("Missing LINKEDIN_EMAIL/LINKEDIN_PASSWORD in .env — set them and try again.")
     with sync_playwright() as p:
@@ -281,8 +290,8 @@ def run_paired(max_likes: int, headful: bool, comment_preview: bool = False, dry
             pass
         human_sleep(3)
         print("Starting paired scanning/acting on feed (1st-degree connections only).")
-        
-        liked = run_campaign_logic(page, max_likes, comment_preview, dry_run, safe_mode)
+        start_time = datetime.now()
+        liked = run_campaign_logic(page, max_likes, comment_preview, dry_run, safe_mode, duration_minutes=duration_minutes, start_time=start_time)
         
         print(f"Paired run finished — liked {liked}/{max_likes}. Closing browser.")
         try:
@@ -300,11 +309,14 @@ if __name__ == '__main__':
     parser.add_argument('--comment-preview', action='store_true', help='Generate comments and preview them without posting')
     parser.add_argument('--dry-run', action='store_true', help='Do not perform any network actions (likes/comments)')
     parser.add_argument('--safe-mode', action='store_true', help='Enforce stricter safety (e.g., language detection)')
+    parser.add_argument('--duration', type=int, default=None, help='Maximum duration in minutes (e.g., 15 for 15 min run)')
     parser.add_argument('--log-level', default='INFO', help='Logging level')
     args = parser.parse_args()
     print("Paired Agent - OpenAI-Powered LinkedIn Engagement")
     print("=" * 50)
     print("Comment strategy: First 2 posts -> Always comment")
     print("                  Remaining posts -> 50% chance to comment")
+    duration_msg = f" (max {args.duration} min)" if args.duration else ""
+    print(f"Starting engagement{duration_msg}...")
     print("=" * 50)
-    run_paired(max_likes=args.max, headful=args.headful, comment_preview=args.comment_preview, dry_run=args.dry_run, safe_mode=args.safe_mode)
+    run_paired(max_likes=args.max, headful=args.headful, comment_preview=args.comment_preview, dry_run=args.dry_run, safe_mode=args.safe_mode, duration_minutes=args.duration)

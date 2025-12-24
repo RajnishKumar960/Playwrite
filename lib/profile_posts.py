@@ -118,10 +118,22 @@ def navigate_to_activity_page(page: Page) -> bool:
     try:
         current_url = page.url
         
+        # Check if already on activity page - no need to navigate again
+        if "recent-activity" in current_url:
+            print("✓ Already on activity page")
+            return True
+        
         # Build activity URL from profile URL
         # e.g., linkedin.com/in/johndoe -> linkedin.com/in/johndoe/recent-activity/all/
         if "/in/" in current_url:
+            # Strip query params and trailing slash
             base_url = current_url.split("?")[0].rstrip("/")
+            
+            # Ensure we're not appending to an already activity URL (safety check)
+            # Extract just the profile path without any trailing segments
+            if "/recent-activity" in base_url:
+                base_url = base_url.split("/recent-activity")[0]
+            
             activity_url = f"{base_url}/recent-activity/all/"
             
             page.goto(activity_url, wait_until="domcontentloaded", timeout=15000)

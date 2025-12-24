@@ -37,7 +37,7 @@ from dotenv import load_dotenv
 import argparse
 import os
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 from lib.utils import human_sleep, smooth_scroll
@@ -520,7 +520,8 @@ def run_lead_campaign(
     headful: bool = True,
     dry_run: bool = False,
     comment_preview: bool = False,
-    safe_mode: bool = False
+    safe_mode: bool = False,
+    duration_minutes: int = None
 ) -> Dict:
     """
     Main function to run the lead engagement campaign.
@@ -628,8 +629,17 @@ def run_lead_campaign(
         print("\n✓ Logged in successfully\n")
         human_sleep(2, 3)
         
+        # Set up duration tracking
+        start_time = datetime.now()
+        end_time = start_time + timedelta(minutes=duration_minutes) if duration_minutes else None
+        
         # Process each lead
         for i, lead in enumerate(leads):
+            # Check duration limit
+            if end_time and datetime.now() >= end_time:
+                print(f"\n⏱ Duration limit ({duration_minutes} min) reached. Stopping...")
+                break
+            
             print(f"\n[{i+1}/{len(leads)}] ", end="")
             
             lead_result = process_lead(
@@ -788,6 +798,12 @@ if __name__ == "__main__":
         action="store_true", 
         help="Generate pain points report only"
     )
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=None,
+        help="Maximum duration in minutes (e.g., 15 for 15 min run)"
+    )
     
     args = parser.parse_args()
     
@@ -801,5 +817,6 @@ if __name__ == "__main__":
             headful=args.headful,
             dry_run=args.dry_run,
             comment_preview=args.comment_preview,
-            safe_mode=args.safe_mode
+            safe_mode=args.safe_mode,
+            duration_minutes=args.duration
         )
