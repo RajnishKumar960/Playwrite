@@ -510,7 +510,7 @@ def get_leads_to_check_connection(limit: int = 20) -> List[Dict]:
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT id, profile_url, name, connection_status
+            SELECT id, profile_url, name, connection_status, sheet_row
             FROM leads
             WHERE connection_status = 'pending'
             ORDER BY last_connection_check ASC
