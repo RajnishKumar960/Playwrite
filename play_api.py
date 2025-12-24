@@ -363,4 +363,6 @@ def warmup():
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=int(os.getenv('PLAY_API_PORT', 4000)), debug=False)
+    port = int(os.getenv('PORT', os.getenv('PLAY_API_PORT', 4000)))
+    app.run(host='0.0.0.0', port=port, debug=False)
+

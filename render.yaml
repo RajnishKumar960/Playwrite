@@ -1,0 +1,29 @@
+# Render Blueprint Configuration
+# Deploy to Render: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: tsi-linkedin-automation
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    plan: starter  # $7/month - required for persistent disk
+    healthCheckPath: /health
+    envVars:
+      # LinkedIn Credentials (set in Render dashboard)
+      - key: LINKEDIN_EMAIL
+        sync: false
+      - key: LINKEDIN_PASSWORD
+        sync: false
+      # OpenAI API Key
+      - key: OPENAI_API_KEY
+        sync: false
+      # Google Sheets
+      - key: GOOGLE_SHEET_ID
+        sync: false
+      # API Security Key
+      - key: PLAY_API_KEY
+        sync: false
+      # Port (Render sets this automatically)
+      - key: PORT
+        value: 8080
