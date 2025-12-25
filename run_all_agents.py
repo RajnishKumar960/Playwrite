@@ -66,13 +66,14 @@ def main():
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Preview mode - no actual engagements"
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Enable streaming for all agents"
     )
     args = parser.parse_args()
     
     duration = args.duration
-    headful_flag = "--headful" if args.headful else ""
-    dry_run_flag = "--dry-run" if args.dry_run else ""
     
     print("\n" + "=" * 60)
     print("   Running All LinkedIn Agents Concurrently")
@@ -80,38 +81,42 @@ def main():
     print(f"  Duration: {duration} minutes each")
     print(f"  Mode: {'VISIBLE' if args.headful else 'HEADLESS'}")
     print(f"  Dry Run: {args.dry_run}")
+    print(f"  Streaming: {args.stream}")
     print("=" * 60 + "\n")
     
     # Get Python path from virtual environment
     python_path = sys.executable
     
+    # Common args
+    stream_flag = ["--stream"] if args.stream else []
+    
     # Define agents and their commands
     agents = [
         {
-            "name": "Paired Agent (Feed Engagement)",
+            "name": "Feed Warmer (Enhanced)",
             "command": [
-                python_path, "paired_agent.py",
-                "--max", "50",  # High number, will be limited by duration
+                python_path, "enhanced_paired_agent.py",
+                "--max", "50", 
                 "--duration", str(duration),
-            ],
+            ] + stream_flag,
             "log": LOGS_DIR / "paired_agent.log"
         },
         {
             "name": "Lead Agent (Campaign)",
             "command": [
                 python_path, "lead_engagement_agent.py",
-                "--max", "20",  # Will be limited by duration
+                "--max", "20",
                 "--duration", str(duration),
-            ],
+            ] + stream_flag,
             "log": LOGS_DIR / "lead_agent.log"
         },
         {
             "name": "Connection Agent (Status Check)",
             "command": [
                 python_path, "connection_checker.py",
-                "--limit", "30",  # Will be limited by duration
+                "--limit", "30",
                 "--duration", str(duration),
-            ],
+            ] + stream_flag,
             "log": LOGS_DIR / "connection_agent.log"
         }
     ]

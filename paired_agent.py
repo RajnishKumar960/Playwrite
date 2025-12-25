@@ -1,16 +1,6 @@
-'''Paired agent: scanner + worker coordinating in a single browser session.
-
-This script uses the same safety filters and comment generator logic as agent.py
-but separates scanning the feed (finding eligible posts) from acting on posts
-(liking/commenting). They operate in a linked loop so the scanner and worker stay
-in the same Playwright session and behave coherently.
-
-Run headed when posting comments to allow manual 2FA/captcha handling.
-Usage (PowerShell):
-  python paired_agent.py --max 12 --headful --comment-preview
-
-Note: This is conservative software intended for personal automation. Use responsibly.
-''' 
+"""Paired Agent - OpenAI-Powered LinkedIn Engagement
+Likes posts and generates AI comments with dashboard streaming support.
+"""
 
 from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
@@ -18,305 +8,235 @@ import argparse
 import os
 import random
 from datetime import datetime, timedelta
-from lib.utils import human_sleep, smooth_scroll
+
+from lib.utils import human_sleep
 from lib.safety import safe_to_like, safe_to_comment
 from lib.auth import login
 from lib.openai_comments import generate_openai_comment
-from state_store import has_processed, mark_processed, get_all
+from state_store import has_processed, mark_processed
 
-# Load .env
 load_dotenv()
 
 LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
 LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 
-def find_posts_on_page(page):
-    """Return list of post ElementHandles (best‑effort) and small data snippets.
+# Dashboard streaming
+_streamer = None
+_streaming_enabled = False
 
-    Each item is a dict: {"el": locator, "text": str, "author": str, "id": hash}
-    """
-    posts = []
-    # Defensive check: ensure page is still open
+
+def init_streaming(agent_name: str = 'feedWarmer'):
+    """Initialize dashboard streaming."""
+    global _streamer, _streaming_enabled
     try:
-        if page.is_closed():
-            print("Warning: Page is closed, returning empty posts")
-            return posts
-    except Exception:
-        return posts
-    # common post containers — LinkedIn uses several structures; this is best‑effort
-    try:
-        post_containers = page.locator("div.occludable-update, div.feed-shared-update-v2")
-        total = post_containers.count()
+        from agent_streaming import AgentStreamingRunner
+        _streamer = AgentStreamingRunner(agent_name)
+        if _streamer.connect():
+            _streaming_enabled = True
+            print(f"✓ Dashboard streaming enabled")
+            return True
     except Exception as e:
-        print(f"Warning: Could not find post containers: {e}")
-        return posts
-    for i in range(total):
-        try:
-            c = post_containers.nth(i)
-            snippet = ""
-            try:
-                snippet = c.inner_text()[:300]
-            except Exception:
-                snippet = ""
-            author = ""
-            try:
-                author_l = c.locator("span.feed-shared-actor__name, a.feed-shared-actor__name-link")
-                if author_l.count() > 0:
-                    author = author_l.nth(0).inner_text() or ""
-            except Exception:
-                author = ""
-            post_id = hash(snippet)
-            posts.append({"el": c, "text": snippet, "author": author, "id": post_id})
-        except Exception:
-            continue
-    return posts
+        print(f"Streaming not available: {e}")
+    return False
 
-def process_post(page, post_item, should_comment=False, comment_preview=False, safe_mode=False):
-    """Like and optionally comment on a single post_item.
 
-    Returns True if a like (or preview) was performed, False otherwise.
-    """
-    el = post_item["el"]
-    # Safety check for liking
-    like_ok, like_reason = safe_to_like(post_item, safe_mode=safe_mode)
-    if not like_ok:
-        print(f"Skipping like: {like_reason}")
-        return False
-    # Find like button inside this post
-    candidates = el.locator("button[aria-label*='Like']")
-    like_btn = None
-    if candidates.count() > 0:
-        like_btn = candidates.nth(0)
-    else:
-        like_btn = page.locator("button[aria-label*='Like']").nth(0)
-    # Confirm not already liked
-    aria = None
-    try:
-        aria = like_btn.get_attribute("aria-pressed")
-    except Exception:
-        aria = None
-    if aria == "true":
-        return False
-    # Human‑like mouse movement and click
-    bb = like_btn.bounding_box()
-    if bb:
-        cx = bb["x"] + bb["width"] / 2
-        cy = bb["y"] + bb["height"] / 2
-        page.mouse.move(cx, cy)
-        human_sleep(0.25)
-    try:
-        like_btn.click()
-    except Exception:
-        return False
-    # Comment handling
-    if should_comment:
-        ai_decision = generate_openai_comment(post_item)
-        
-        action = ai_decision.get("action", "SKIP")
-        reason = ai_decision.get("reason", "Unknown")
-        comment_text = ai_decision.get("comment", "")
-        
-        if action == "SKIP":
-            print(f"AI decided to SKIP comment: {reason}")
-            return True
-            
-        if comment_preview:
-            print(f"[Comment preview] {comment_text}")
-            return True
-        # Post the comment
-        try:
-            cbtn = el.locator("button[aria-label*='Comment']")
-            if cbtn.count() > 0:
-                cbtn.nth(0).click()
-                human_sleep(0.5)
-            editor = el.locator("div.ql-editor, div[role='textbox']")
-            try:
-                editor.first.wait_for(state="visible", timeout=5000)
-            except Exception:
-                editor = page.locator("div.ql-editor, div[role='textbox']")
-                if editor.count() > 0:
-                    editor = editor.first
-                else:
-                    print("No comment box found.")
-                    return True
-            editor.first.click()
-            human_sleep(0.3)
-            editor.first.fill(comment_text)
-            human_sleep(0.8)
-            # Click post button (multiple strategies)
-            post_clicked = False
-            btn_selectors = [
-                "button.artdeco-button--primary",
-                "button[type='submit']",
-                "button:has-text('Post')",
-                "button:has-text('Comment')",
-                "form button.artdeco-button",
-            ]
-            for selector in btn_selectors:
-                try:
-                    post_btn = el.locator(selector)
-                    if post_btn.count() > 0 and post_btn.first.is_visible():
-                        bb = post_btn.first.bounding_box()
-                        if bb:
-                            page.mouse.move(bb["x"] + bb["width"]/2, bb["y"] + bb["height"]/2)
-                            human_sleep(0.2)
-                        post_btn.first.click()
-                        post_clicked = True
-                        print(f"✓ Clicked Post button (selector: {selector})")
-                        break
-                except Exception:
-                    continue
-            if not post_clicked:
-                try:
-                    page_post_btn = page.locator("button.comments-comment-box__submit-button, button.artdeco-button--primary:visible").first
-                    if page_post_btn.is_visible():
-                        page_post_btn.click()
-                        post_clicked = True
-                        print("✓ Clicked Post button (page‑wide fallback)")
-                except Exception:
-                    pass
-            if not post_clicked:
-                print("Post button not found, trying Ctrl+Enter...")
-                editor.first.press("Control+Enter")
-                human_sleep(0.3)
-                editor.first.press("Enter")
-                print("Sent keyboard shortcuts to submit")
-            human_sleep(2.0)
-            print("✓ Comment posted successfully!")
-        except Exception as e:
-            print(f"Could not post comment: {e}")
-    return True
+def stream_log(message: str, log_type: str = 'info'):
+    """Send log to dashboard."""
+    if _streaming_enabled and _streamer:
+        _streamer.send_log(message, log_type)
+    print(message)
 
-def run_campaign_logic(page, max_likes, comment_preview=False, dry_run=False, safe_mode=False, duration_minutes=None, start_time=None):
-    """Core logic to run the engagement campaign on a provided page object."""
-    liked = 0
-    attempts = 0
-    if start_time is None:
-        start_time = datetime.now()
-    end_time = start_time + timedelta(minutes=duration_minutes) if duration_minutes else None
+
+def set_streaming_page(page):
+    """Set page for screenshots."""
+    if _streaming_enabled and _streamer:
+        _streamer.set_page(page)
+
+
+def capture_screenshot():
+    """Capture screenshot from main thread."""
+    if _streaming_enabled and _streamer:
+        _streamer.capture_and_send()
+
+
+def stop_streaming():
+    """Stop streaming."""
+    global _streamer, _streaming_enabled
+    if _streamer:
+        _streamer.disconnect()
+    _streaming_enabled = False
+
+
+def run_paired_agent(max_likes=50, headful=True, dry_run=False, duration_minutes=None, stream=False):
+    """Run the paired agent for LinkedIn engagement."""
     
-    while liked < max_likes and attempts < max_likes * 12:
-        # Check duration limit
-        if end_time and datetime.now() >= end_time:
-            print(f"\n⏱ Duration limit ({duration_minutes} min) reached. Stopping...")
-            break
-        attempts += 1
-        posts = find_posts_on_page(page)
-        queue = []
-        for pitem in posts:
-            if has_processed(pitem["id"]):
-                continue
-            author_text = pitem.get("author", "")
-            if "1st" not in author_text and " 1st" not in pitem.get("text", ""):
-                mark_processed(pitem["id"])  # mark as seen/skipped
-                continue
-            queue.append(pitem)
-        for pitem in queue:
-            if liked >= max_likes:
-                break
-            should_comment = (liked < 2) or (random.random() < 0.8)
-            if dry_run:
-                print(f"[DRY RUN] Would like post {pitem['id']}, comment={should_comment}")
-                liked += 1
-                mark_processed(pitem["id"])
-                continue
-            did = process_post(page, pitem, should_comment=should_comment, comment_preview=comment_preview, safe_mode=safe_mode)
-            if did:
-                liked += 1
-                mark_processed(pitem["id"])
-                wait_sec = liked + 2
-                print(f"Liked {liked} — waiting {wait_sec}s")
-                human_sleep(wait_sec)
-        if liked < max_likes:
-            try:
-                if page.is_closed():
-                    print("Page was closed, ending run.")
-                    break
-                x = random.randint(100, 1200)
-                y = random.randint(100, 800)
-                page.mouse.move(x, y)
-                human_sleep(0.5)
-                try:
-                    profile_el = page.locator("span.feed-shared-actor__name, a.feed-shared-actor__name-link").first
-                    if profile_el.count() > 0:
-                        profile_el.hover()
-                        human_sleep(0.3)
-                except Exception:
-                    pass
-                scroll_factor = random.uniform(0.8, 0.9)
-                # Use smooth scroll instead of jump
-                scroll_distance = int(page.viewport_size['height'] * scroll_factor)
-                smooth_scroll(page, scroll_distance)
-                human_sleep(random.uniform(1.2, 2.8))
-            except Exception as e:
-                print(f"Error during scroll: {e}")
-                break
-    return liked
-
-def run_paired(max_likes: int, headful: bool, comment_preview: bool = False, dry_run: bool = False, safe_mode: bool = False, duration_minutes: int = None):
-    if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
-        raise SystemExit("Missing LINKEDIN_EMAIL/LINKEDIN_PASSWORD in .env — set them and try again.")
+    print("\n" + "=" * 50)
+    print("   Paired Agent - LinkedIn Engagement")
+    print("=" * 50)
+    
+    if stream:
+        if init_streaming('feedWarmer'):
+            headful = False
+    
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not headful, slow_mo=50)
-        # Try to load storage state if it exists
+        
         storage_state = "auth.json" if os.path.exists("auth.json") else None
-        context = browser.new_context(viewport={"width": 1280, "height": 900}, storage_state=storage_state)
+        context = browser.new_context(
+            viewport={"width": 1280, "height": 900},
+            storage_state=storage_state
+        )
         page = context.new_page()
         
-        # If we loaded state, we might be logged in. Login function handles verification.
+        if stream and _streaming_enabled:
+            set_streaming_page(page)
+        
+        # Login
         if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
             if headful:
-                print("Login did not automatically reach the feed. If LinkedIn asked for 2FA/captcha, please complete the verification in the opened browser. Press Enter here once you've completed it to continue.")
+                stream_log("Login requires verification. Complete in browser.", "warning")
+                input("Press Enter when ready...")
                 try:
-                    input()
-                except Exception:
-                    print("No input available; aborting.")
-                    browser.close()
-                    return
-                try:
-                    page.wait_for_url("**/feed/**", timeout=20000)
-                except Exception:
-                    print("Still not redirected to /feed — aborting run.")
+                    page.wait_for_url("**/feed/**", timeout=30000)
+                except:
+                    stream_log("Could not reach feed", "error")
                     browser.close()
                     return
             else:
-                print("Login failed — check credentials/2FA/captcha.")
+                stream_log("Login failed", "error")
                 browser.close()
                 return
-        print("Logged in — waiting for page to stabilize...")
-        try:
-            page.wait_for_load_state("networkidle", timeout=10000)
-        except Exception:
-            pass
-        human_sleep(3)
-        print("Starting paired scanning/acting on feed (1st-degree connections only).")
-        start_time = datetime.now()
-        liked = run_campaign_logic(page, max_likes, comment_preview, dry_run, safe_mode, duration_minutes=duration_minutes, start_time=start_time)
         
-        print(f"Paired run finished — liked {liked}/{max_likes}. Closing browser.")
+        stream_log("Logged in successfully", "success")
+        capture_screenshot()
+        
+        # Navigate to feed
+        page.goto("https://www.linkedin.com/feed/", timeout=30000)
+        human_sleep(2, 3)
+        capture_screenshot()
+        
+        start_time = datetime.now()
+        end_time = start_time + timedelta(minutes=duration_minutes) if duration_minutes else None
+        
+        liked = 0
+        commented = 0
+        
+        while liked < max_likes:
+            if end_time and datetime.now() >= end_time:
+                stream_log(f"Duration limit reached. Stopping...", "warning")
+                break
+            
+            # Scroll to load posts
+            page.evaluate("window.scrollBy(0, 600)")
+            human_sleep(1, 2)
+            capture_screenshot()
+            
+            # Find posts
+            posts = page.locator("div.feed-shared-update-v2").all()
+            
+            for post in posts:
+                if liked >= max_likes:
+                    break
+                
+                try:
+                    # Get post text
+                    text_el = post.locator(".feed-shared-update-v2__description, .feed-shared-text")
+                    post_text = text_el.first.inner_text() if text_el.count() > 0 else ""
+                    
+                    if not post_text or len(post_text) < 20:
+                        continue
+                    
+                    # Skip if processed
+                    post_id = post_text[:50]
+                    if has_processed(post_id):
+                        continue
+                    
+                    # Safety check
+                    safe, reason = safe_to_like({"text": post_text})
+                    if not safe:
+                        stream_log(f"Skipping: {reason}", "warning")
+                        continue
+                    
+                    # Like the post
+                    like_btn = post.locator("button[aria-label*='Like'], button[aria-label*='like']")
+                    if like_btn.count() > 0:
+                        btn = like_btn.first
+                        if btn.get_attribute("aria-pressed") != "true":
+                            if not dry_run:
+                                btn.click()
+                                liked += 1
+                                stream_log(f"Liked post ({liked}/{max_likes})", "success")
+                                mark_processed(post_id)
+                                capture_screenshot()
+                            else:
+                                stream_log(f"[DRY RUN] Would like post", "info")
+                            
+                            human_sleep(2, 4)
+                    
+                    # Comment (first 2 posts always, then 50% chance)
+                    should_comment = (commented < 2) or (random.random() < 0.5)
+                    
+                    if should_comment and not dry_run:
+                        ai_result = generate_openai_comment({"text": post_text})
+                        if ai_result.get("action") == "COMMENT":
+                            comment_text = ai_result.get("comment", "")
+                            if comment_text:
+                                # Click comment button
+                                comment_btn = post.locator("button[aria-label*='Comment']")
+                                if comment_btn.count() > 0:
+                                    comment_btn.first.click()
+                                    human_sleep(1, 2)
+                                    
+                                    # Type comment
+                                    editor = page.locator("div.ql-editor, div[contenteditable='true']").first
+                                    if editor.is_visible():
+                                        editor.fill(comment_text)
+                                        human_sleep(0.5, 1)
+                                        
+                                        # Post
+                                        submit_btn = page.locator("button.artdeco-button--primary").first
+                                        if submit_btn.is_visible():
+                                            submit_btn.click()
+                                            commented += 1
+                                            stream_log(f"Commented: {comment_text[:30]}...", "success")
+                                            capture_screenshot()
+                                            human_sleep(2, 4)
+                
+                except Exception as e:
+                    stream_log(f"Error: {str(e)[:50]}", "error")
+                    continue
+            
+            # Scroll more
+            page.evaluate("window.scrollBy(0, 800)")
+            human_sleep(2, 4)
+        
+        # Save session
         try:
-            browser.close()
-        except Exception:
-            try:
-                context.close()
-            except Exception:
-                pass
+            context.storage_state(path="auth.json")
+        except:
+            pass
+        
+        browser.close()
+    
+    stop_streaming()
+    
+    stream_log(f"Done! Liked: {liked}, Commented: {commented}", "success")
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Paired agent: scanner + worker for LinkedIn feed with OpenAI comments')
-    parser.add_argument('--max', type=int, default=10, help='Maximum number of posts to like')
-    parser.add_argument('--headful', action='store_true', help='Run with visible browser (recommended)')
-    parser.add_argument('--comment-preview', action='store_true', help='Generate comments and preview them without posting')
-    parser.add_argument('--dry-run', action='store_true', help='Do not perform any network actions (likes/comments)')
-    parser.add_argument('--safe-mode', action='store_true', help='Enforce stricter safety (e.g., language detection)')
-    parser.add_argument('--duration', type=int, default=None, help='Maximum duration in minutes (e.g., 15 for 15 min run)')
-    parser.add_argument('--log-level', default='INFO', help='Logging level')
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Paired Agent - LinkedIn Engagement")
+    parser.add_argument("--max", type=int, default=50, help="Maximum likes")
+    parser.add_argument("--headful", action="store_true", help="Visible browser")
+    parser.add_argument("--dry-run", action="store_true", help="Preview mode")
+    parser.add_argument("--duration", type=int, default=None, help="Duration in minutes")
+    parser.add_argument("--stream", action="store_true", help="Stream to dashboard")
+    
     args = parser.parse_args()
-    print("Paired Agent - OpenAI-Powered LinkedIn Engagement")
-    print("=" * 50)
-    print("Comment strategy: First 2 posts -> Always comment")
-    print("                  Remaining posts -> 50% chance to comment")
-    duration_msg = f" (max {args.duration} min)" if args.duration else ""
-    print(f"Starting engagement{duration_msg}...")
-    print("=" * 50)
-    run_paired(max_likes=args.max, headful=args.headful, comment_preview=args.comment_preview, dry_run=args.dry_run, safe_mode=args.safe_mode, duration_minutes=args.duration)
+    
+    run_paired_agent(
+        max_likes=args.max,
+        headful=args.headful,
+        dry_run=args.dry_run,
+        duration_minutes=args.duration,
+        stream=args.stream
+    )

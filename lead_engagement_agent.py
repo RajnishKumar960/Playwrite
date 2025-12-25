@@ -55,7 +55,8 @@ from lib.profile_posts import (
     navigate_to_profile,
     get_recent_posts,
     get_profile_name,
-    get_connection_degree
+    get_connection_degree,
+    is_post_recent
 )
 from lib.pain_point_analyzer import (
     analyze_pain_points,
@@ -77,6 +78,7 @@ from lib.lead_store import (
 )
 from lib.connections import send_connection_request
 from state_store import has_processed, mark_processed
+from agent_streaming import AgentStreamingRunner
 
 # Load environment variables
 load_dotenv()
@@ -121,7 +123,6 @@ def engage_with_post(
     post_date = post.get("date", "")
     
     # CRITICAL: Verify post is within 7 days before any engagement
-    from lib.profile_posts import is_post_recent
     if not is_post_recent(post_date, max_days=7):
         result["skipped_reason"] = f"Post too old ({post_date})"
         print(f"  ○ Skipping: Post is older than 7 days ({post_date})")
@@ -302,7 +303,8 @@ def process_lead(
     dry_run: bool = False,
     comment_preview: bool = False,
     safe_mode: bool = False,
-    max_posts: int = 3
+    max_posts: int = 3,
+    streamer: AgentStreamingRunner = None
 ) -> Dict:
     """
     Process a single lead: visit profile, engage with posts.
@@ -331,12 +333,18 @@ def process_lead(
     print(f"Company: {company}")
     print(f"{'='*60}")
     
+    if streamer:
+        streamer.send_action("visiting", lead_name or profile_url)
+        streamer.send_log(f"Processing lead: {lead_name}")
+    
     try:
         # Navigate to profile
         if not navigate_to_profile(page, profile_url):
             result["error"] = "Failed to navigate to profile"
             print(f"  ✗ {result['error']}")
             return result
+        
+        if streamer: streamer.capture_and_send()
         
         # Get actual name from profile if missing
         if not lead_name:
@@ -349,6 +357,8 @@ def process_lead(
         # Get recent posts (within 7 days - skip lead entirely if none)
         posts = get_recent_posts(page, max_posts=max_posts, max_days=7)
         result["posts_found"] = len(posts)
+        
+        if streamer: streamer.capture_and_send()
         
         if not posts:
             print("  ○ No posts within 7 days - skipping this lead")
@@ -387,6 +397,7 @@ def process_lead(
                     update_connection_status(lead_id, "pending")
                     if sheet_id and row_number:
                         update_lead_status(sheet_id, row_number, connection_status="pending")
+                    if streamer: streamer.send_action("connected", lead_name)
         elif is_connected:
             update_connection_status(lead_id, "accepted")
             if sheet_id and row_number:
@@ -410,6 +421,7 @@ def process_lead(
                 return result
         
         print(f"  Found {len(posts)} posts to analyze")
+        if streamer: streamer.capture_and_send()
         
         all_pain_points = []
         opportunity_scores = []
@@ -425,6 +437,7 @@ def process_lead(
                 break # Non-connected: only check first few
             
             print(f"\n  Analyzing post {i+1}/{len(posts)}...")
+            if streamer: streamer.capture_and_send()
             
             # If we don't engage, we still analyze for pain points
             if not should_engage or (is_connected and i > 0):
@@ -446,6 +459,9 @@ def process_lead(
                     engaged_one_post = True
                     if not is_connected:
                         print(f"  ✓ Engaged with 1 post - moving to next lead")
+                    if streamer: 
+                        streamer.send_action("engaged", lead_name, {"type": "like/comment"})
+                        streamer.capture_and_send()
                 
             # Aggregate pain points from all analyzed posts
             pain_points = pain_analysis.get("pain_points", []) if pain_analysis else []
@@ -521,22 +537,11 @@ def run_lead_campaign(
     dry_run: bool = False,
     comment_preview: bool = False,
     safe_mode: bool = False,
-    duration_minutes: int = None
+    duration_minutes: int = None,
+    stream: bool = False
 ) -> Dict:
     """
     Main function to run the lead engagement campaign.
-    
-    Args:
-        sheet_id: Google Sheet ID (or uses GOOGLE_SHEET_ID env var)
-        max_leads: Maximum leads to process in this run
-        max_posts_per_lead: Max posts to engage per lead
-        headful: Run with visible browser
-        dry_run: Don't perform actual engagements
-        comment_preview: Preview comments without posting
-        safe_mode: Use stricter content filtering
-    
-    Returns:
-        Dict with campaign run statistics
     """
     if not sheet_id:
         sheet_id = os.getenv("GOOGLE_SHEET_ID")
@@ -547,6 +552,12 @@ def run_lead_campaign(
     if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
         raise SystemExit("Missing LINKEDIN_EMAIL/LINKEDIN_PASSWORD in .env")
     
+    streamer = None
+    if stream:
+        streamer = AgentStreamingRunner("leadCampaign")
+        streamer.connect()
+        streamer.send_log(f"Starting Lead Campaign (Max leads: {max_leads})")
+
     print("\n" + "="*60)
     print("   Lead Engagement Agent - 15 Day Campaign")
     print("="*60)
@@ -554,6 +565,8 @@ def run_lead_campaign(
     print(f"  Max leads: {max_leads}")
     print(f"  Mode: {'DRY RUN' if dry_run else 'LIVE'}")
     print(f"  Comments: {'Preview' if comment_preview else 'Post'}")
+    if duration_minutes:
+        print(f"  Duration: {duration_minutes}m")
     print("="*60 + "\n")
     
     # STRICT: Check daily limit (10 leads per day max)
@@ -562,6 +575,9 @@ def run_lead_campaign(
     if today_count >= DAILY_LIMIT:
         print(f"⚠ Daily limit reached: {today_count}/{DAILY_LIMIT} leads engaged today.")
         print("Please run again tomorrow.")
+        if streamer:
+            streamer.send_log(f"Daily limit reached ({today_count}/{DAILY_LIMIT})", "warning")
+            streamer.disconnect()
         return {"leads_processed": 0, "success": True, "message": "Daily limit reached"}
     
     remaining_today = DAILY_LIMIT - today_count
@@ -580,9 +596,13 @@ def run_lead_campaign(
     
     if not leads:
         print("No unprocessed leads found for today.")
+        if streamer:
+            streamer.send_log("No leads found", "info")
+            streamer.disconnect()
         return {"leads_processed": 0, "success": True}
     
     print(f"Found {len(leads)} leads to process\n")
+    if streamer: streamer.send_log(f"Processing {len(leads)} leads")
     
     results = {
         "leads_processed": 0,
@@ -595,6 +615,10 @@ def run_lead_campaign(
     
     # Launch browser
     with sync_playwright() as p:
+        # If streaming, we might want headless=True even if user passed headful=True?
+        # Actually, user usually passes --headful via CLI, making headless=False.
+        # But dashboard passes --stream and usually expects headless behavior unless debug.
+        # We will respect the 'headful' arg.
         browser = p.chromium.launch(headless=not headful, slow_mo=50)
         
         # Try to load existing session
@@ -605,6 +629,8 @@ def run_lead_campaign(
         )
         page = context.new_page()
         
+        if streamer: streamer.set_page(page)
+
         # Login
         if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
             if headful:
@@ -620,13 +646,16 @@ def run_lead_campaign(
                 except Exception:
                     print("Could not reach feed. Aborting.")
                     browser.close()
+                    if streamer: streamer.disconnect()
                     return {"leads_processed": 0, "success": False, "error": "Login failed"}
             else:
                 print("Login failed. Run with --headful to handle verification.")
                 browser.close()
+                if streamer: streamer.disconnect()
                 return {"leads_processed": 0, "success": False, "error": "Login failed"}
         
         print("\n✓ Logged in successfully\n")
+        if streamer: streamer.capture_and_send()
         human_sleep(2, 3)
         
         # Set up duration tracking
@@ -638,6 +667,7 @@ def run_lead_campaign(
             # Check duration limit
             if end_time and datetime.now() >= end_time:
                 print(f"\n⏱ Duration limit ({duration_minutes} min) reached. Stopping...")
+                if streamer: streamer.send_log("Duration limit reached")
                 break
             
             print(f"\n[{i+1}/{len(leads)}] ", end="")
@@ -649,7 +679,8 @@ def run_lead_campaign(
                 dry_run=dry_run,
                 comment_preview=comment_preview,
                 safe_mode=safe_mode,
-                max_posts=max_posts_per_lead
+                max_posts=max_posts_per_lead,
+                streamer=streamer
             )
             
             results["leads_processed"] += 1
@@ -664,6 +695,8 @@ def run_lead_campaign(
                     "error": lead_result.get("error")
                 })
             
+            if streamer: streamer.capture_and_send()
+
             # Wait between leads
             if i < len(leads) - 1:
                 wait_time = random.uniform(8, 15)
@@ -677,6 +710,8 @@ def run_lead_campaign(
             browser.close()
         except Exception:
             pass
+        
+        if streamer: streamer.disconnect()
     
     # Print summary
     print("\n" + "="*60)
@@ -799,14 +834,18 @@ if __name__ == "__main__":
         help="Generate pain points report only"
     )
     parser.add_argument(
-        "--duration",
-        type=int,
-        default=None,
-        help="Maximum duration in minutes (e.g., 15 for 15 min run)"
+        "--duration", 
+        type=int, 
+        help="Maximum duration in minutes"
     )
-    
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Enable streaming to dashboard"
+    )
+
     args = parser.parse_args()
-    
+
     if args.report:
         generate_report(args.sheet)
     else:
@@ -818,5 +857,6 @@ if __name__ == "__main__":
             dry_run=args.dry_run,
             comment_preview=args.comment_preview,
             safe_mode=args.safe_mode,
-            duration_minutes=args.duration
+            duration_minutes=args.duration,
+            stream=args.stream
         )
