@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, Users, MessageSquare, Zap, RefreshCw, ArrowUpRight, Heart, Send, Target, Clock, BarChart3, Activity } from 'lucide-react';
+import { TrendingUp, Users, MessageSquare, RefreshCw, ArrowUpRight, Heart, Send, Target, Clock, BarChart3, Activity, Zap } from 'lucide-react';
 import { useAgentStore } from '@/lib/store';
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Animated counter
 function AnimatedCounter({ value, suffix = '' }: { value: number; suffix?: string }) {
@@ -78,49 +78,49 @@ export default function DashboardPage() {
         { label: 'Success', value: stats.successRate || 67.8, suffix: '%', icon: TrendingUp, color: 'from-green-500 to-emerald-500', trend: '+2.1%', sparkline: [55, 58, 62, 60, 65, 64, 68] },
     ];
 
-    const actionIcons: Record<string, typeof Heart> = { like: Heart, comment: MessageSquare, connection: Send, view: Target };
+    const actionIcons: Record<string, any> = { like: Heart, comment: MessageSquare, connection: Send, view: Target };
     const runningAgents = Object.entries(agentStatus).filter(([_, status]) => status === 'running').length;
 
     return (
-        <div className="space-y-4 md:space-y-6">
+        <div className="space-y-4 md:space-y-6 p-4 md:p-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h1 className="text-xl md:text-3xl font-bold">Dashboard</h1>
-                    <p className="text-muted-foreground text-sm mt-0.5 hidden sm:block">LinkedIn automation overview</p>
+                    <h1 className="text-xl md:text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-white to-gray-400">Dashboard</h1>
+                    <p className="text-gray-400 text-sm mt-0.5 hidden sm:block">LinkedIn automation overview</p>
                 </div>
                 <div className="flex items-center gap-2 md:gap-3">
                     {runningAgents > 0 && (
                         <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-full text-xs md:text-sm">
+                            className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-full text-xs md:text-sm shadow-lg shadow-green-900/20">
                             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                             <span className="text-green-400 font-medium">{runningAgents} Running</span>
                         </motion.div>
                     )}
-                    <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-1.5 glass-card rounded-lg text-xs md:text-sm">
+                    <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-1.5 glass-card rounded-lg text-xs md:text-sm hover:bg-white/5 text-gray-300 hover:text-white">
                         <RefreshCw className="w-3.5 h-3.5" /> Refresh
                     </button>
                 </div>
             </div>
 
-            {/* Stats Cards - Responsive Grid */}
+            {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 {statCards.map((stat, i) => (
                     <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
                         className="glass-card card-hover rounded-xl p-3 md:p-5 relative overflow-hidden group">
-                        <div className={`absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br ${stat.color} opacity-10 blur-2xl group-hover:opacity-20 transition-opacity`} />
+                        <div className={`absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-linear-to-br ${stat.color} opacity-10 blur-2xl group-hover:opacity-20 transition-opacity`} />
                         <div className="relative z-10">
                             <div className="flex items-start justify-between mb-2 md:mb-3">
-                                <div className={`p-1.5 md:p-2.5 rounded-lg md:rounded-xl bg-gradient-to-br ${stat.color}`}>
+                                <div className={`p-1.5 md:p-2.5 rounded-lg md:rounded-xl bg-linear-to-br ${stat.color} shadow-lg shadow-black/20`}>
                                     <stat.icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
                                 </div>
-                                <div className="flex items-center gap-0.5 text-xs font-medium text-green-400">
+                                <div className="flex items-center gap-0.5 text-xs font-medium text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-md border border-green-500/20">
                                     <ArrowUpRight className="w-3 h-3" />{stat.trend}
                                 </div>
                             </div>
-                            <p className="text-xs md:text-sm text-muted-foreground mb-0.5">{stat.label}</p>
+                            <p className="text-xs md:text-sm text-gray-400 mb-0.5">{stat.label}</p>
                             <div className="flex items-end justify-between">
-                                <p className="text-xl md:text-3xl font-bold"><AnimatedCounter value={stat.value} suffix={stat.suffix} /></p>
+                                <p className="text-xl md:text-3xl font-bold text-gray-100"><AnimatedCounter value={stat.value} suffix={stat.suffix} /></p>
                                 <Sparkline data={stat.sparkline} color="#4ade80" />
                             </div>
                         </div>
@@ -128,16 +128,16 @@ export default function DashboardPage() {
                 ))}
             </div>
 
-            {/* Charts Row - Responsive */}
+            {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-                    className="lg:col-span-2 glass-card rounded-xl p-4 md:p-6">
+                    className="lg:col-span-2 glass-card rounded-xl p-4 md:p-6 border border-white/5">
                     <div className="flex items-center justify-between mb-4 md:mb-6">
                         <div>
-                            <h2 className="text-base md:text-lg font-semibold">Weekly Activity</h2>
-                            <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">Engagement trends</p>
+                            <h2 className="text-base md:text-lg font-semibold text-gray-200">Weekly Activity</h2>
+                            <p className="text-xs md:text-sm text-gray-500 hidden sm:block">Engagement trends</p>
                         </div>
-                        <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+                        <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
                     </div>
                     <div className="h-48 md:h-64">
                         <ResponsiveContainer width="100%" height="100%">
@@ -150,25 +150,21 @@ export default function DashboardPage() {
                                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                <XAxis dataKey="day" stroke="rgba(255,255,255,0.3)" fontSize={10} />
-                                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} />
-                                <Tooltip contentStyle={{ background: 'rgba(0,0,0,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                <XAxis dataKey="day" stroke="rgba(255,255,255,0.3)" fontSize={10} axisLine={false} tickLine={false} />
+                                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} axisLine={false} tickLine={false} />
+                                <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px', color: '#fff' }} />
                                 <Area type="monotone" dataKey="likes" stroke="#f43f5e" fill="url(#likesGradient)" strokeWidth={2} />
                                 <Area type="monotone" dataKey="comments" stroke="#3b82f6" fill="url(#commentsGradient)" strokeWidth={2} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
-                    <div className="flex items-center gap-4 md:gap-6 mt-3 md:mt-4">
-                        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-rose-500" /><span className="text-xs md:text-sm text-muted-foreground">Likes</span></div>
-                        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-blue-500" /><span className="text-xs md:text-sm text-muted-foreground">Comments</span></div>
-                    </div>
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass-card rounded-xl p-4 md:p-6">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass-card rounded-xl p-4 md:p-6 border border-white/5">
                     <div className="flex items-center justify-between mb-4 md:mb-6">
-                        <h2 className="text-base md:text-lg font-semibold">Today</h2>
-                        <Activity className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+                        <h2 className="text-base md:text-lg font-semibold text-gray-200">Today</h2>
+                        <Activity className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
                     </div>
                     <div className="space-y-2 md:space-y-4">
                         {[{ label: 'Likes', value: 48, icon: Heart, color: 'text-rose-500' },
@@ -177,23 +173,23 @@ export default function DashboardPage() {
                         { label: 'Views', value: 24, icon: Target, color: 'text-purple-500' }
                         ].map((item, idx) => (
                             <motion.div key={item.label} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 + idx * 0.1 }}
-                                className="flex items-center justify-between p-2.5 md:p-3 bg-accent/30 rounded-lg">
+                                className="flex items-center justify-between p-2.5 md:p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-default border border-transparent hover:border-white/5">
                                 <div className="flex items-center gap-2 md:gap-3">
                                     <item.icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${item.color}`} />
-                                    <span className="text-xs md:text-sm">{item.label}</span>
+                                    <span className="text-xs md:text-sm text-gray-300">{item.label}</span>
                                 </div>
-                                <span className="font-semibold text-sm md:text-base">{item.value}</span>
+                                <span className="font-semibold text-sm md:text-base text-gray-100">{item.value}</span>
                             </motion.div>
                         ))}
                     </div>
                 </motion.div>
             </div>
 
-            {/* Recent Activity - Responsive */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="glass-card rounded-xl p-4 md:p-6">
+            {/* Recent Activity */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="glass-card rounded-xl p-4 md:p-6 border border-white/5">
                 <div className="flex items-center justify-between mb-3 md:mb-4">
-                    <h2 className="text-base md:text-lg font-semibold">Recent Activity</h2>
-                    <Clock className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+                    <h2 className="text-base md:text-lg font-semibold text-gray-200">Recent Activity</h2>
+                    <Clock className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
                 </div>
                 <div className="space-y-2 md:space-y-3">
                     <AnimatePresence>
@@ -201,24 +197,24 @@ export default function DashboardPage() {
                             const Icon = actionIcons[item.type] || Activity;
                             return (
                                 <motion.div key={item.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ delay: idx * 0.05 }}
-                                    className="flex items-center justify-between p-3 md:p-4 bg-accent/30 rounded-lg hover:bg-accent/50 transition-colors">
+                                    className="flex items-center justify-between p-3 md:p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors border border-transparent hover:border-white/5 group">
                                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                                        <div className={`p-1.5 md:p-2 rounded-lg shrink-0 ${item.type === 'like' ? 'bg-rose-500/20' : item.type === 'comment' ? 'bg-blue-500/20' : item.type === 'connection' ? 'bg-orange-500/20' : 'bg-purple-500/20'
+                                        <div className={`p-1.5 md:p-2 rounded-lg shrink-0 ${item.type === 'like' ? 'bg-rose-500/10' : item.type === 'comment' ? 'bg-blue-500/10' : item.type === 'connection' ? 'bg-orange-500/10' : 'bg-purple-500/10'
                                             }`}>
                                             <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${item.type === 'like' ? 'text-rose-500' : item.type === 'comment' ? 'text-blue-500' : item.type === 'connection' ? 'text-orange-500' : 'text-purple-500'
                                                 }`} />
                                         </div>
                                         <div className="min-w-0">
-                                            <span className="font-medium text-xs md:text-sm">{item.action}</span>
-                                            <span className="text-muted-foreground text-xs md:text-sm"> — {item.target}</span>
+                                            <span className="font-medium text-xs md:text-sm text-gray-200 group-hover:text-white transition-colors">{item.action}</span>
+                                            <span className="text-gray-500 text-xs md:text-sm"> — {item.target}</span>
                                         </div>
                                     </div>
-                                    <span className="text-xs text-muted-foreground shrink-0 ml-2">{item.time}</span>
+                                    <span className="text-xs text-gray-500 shrink-0 ml-2 font-mono">{item.time}</span>
                                 </motion.div>
                             );
                         })}
                     </AnimatePresence>
-                    {activity.length === 0 && <p className="text-muted-foreground text-center py-6 md:py-8 text-sm">No recent activity</p>}
+                    {activity.length === 0 && <p className="text-gray-500 text-center py-6 md:py-8 text-sm">No recent activity</p>}
                 </div>
             </motion.div>
         </div>

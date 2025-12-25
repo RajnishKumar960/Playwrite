@@ -324,17 +324,26 @@ def handle_leads_kanban():
                 status = (row['status'] or "").lower()
                 conn_status = (row['connection_status'] or "").lower()
                 
-                # Logic to map raw status to kanban columns
+                # Simulate AI Pain Point Extraction (Mock Logic for now)
+                row_dict = dict(row)
+                row_dict['painPoints'] = []
+                
+                # Mock AI tagging based on company or title
+                if 'Startup' in (row['company'] or ''): 
+                    row_dict['painPoints'].append('Scaling')
+                if 'CTO' in (row_dict.get('name') or ''): # Mock rule
+                    row_dict['painPoints'].append('Technical Debt')
+                    
                 if "replied" in status:
-                    columns["replied"].append(dict(row))
+                    columns["replied"].append(row_dict)
                 elif "interested" in status:
-                    columns["interested"].append(dict(row))
+                    columns["interested"].append(row_dict)
                 elif conn_status == "accepted" or "connected" in status:
-                    columns["connected"].append(dict(row))
+                    columns["connected"].append(row_dict)
                 elif "sent" in status or "engaged" in status:
-                    columns["contacted"].append(dict(row))
+                    columns["contacted"].append(row_dict)
                 else:
-                    columns["new"].append(dict(row))
+                    columns["new"].append(row_dict)
             
             return jsonify({"columns": columns})
             
@@ -529,4 +538,4 @@ if __name__ == '__main__':
     print("  Stream WS: ws://localhost:4000/ws/stream")
     print("=" * 60 + "\n")
     
-    app.run(host='0.0.0.0', port=4000)
+    app.run(host='0.0.0.0', port=5000)

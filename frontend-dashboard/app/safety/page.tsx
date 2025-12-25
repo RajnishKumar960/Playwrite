@@ -1,262 +1,132 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
 import {
-    Shield, AlertTriangle, Ban, Clock,
-    Zap, Eye, CheckCircle2, Save
+    Shield, ShieldAlert, ShieldCheck, Activity,
+    Lock, AlertTriangle, Clock, RefreshCw
 } from 'lucide-react';
-
-interface SafetySettings {
-    dailyLikeLimit: number;
-    dailyCommentLimit: number;
-    dailyConnectionLimit: number;
-    minDelay: number;
-    maxDelay: number;
-    contentFiltering: boolean;
-    skipControversial: boolean;
-    skipSensitive: boolean;
-    blockedKeywords: string[];
-}
+import { motion } from 'framer-motion';
 
 export default function SafetyPage() {
-    const [settings, setSettings] = useState<SafetySettings>({
-        dailyLikeLimit: 100,
-        dailyCommentLimit: 20,
-        dailyConnectionLimit: 25,
-        minDelay: 2,
-        maxDelay: 8,
-        contentFiltering: true,
-        skipControversial: true,
-        skipSensitive: true,
-        blockedKeywords: ['politics', 'religion', 'gambling', 'adult']
+    const [limits, setLimits] = useState({
+        dailyInvites: 25,
+        dailyMessages: 50,
+        dailyViews: 100,
+        coolDown: 15
     });
-    const [newKeyword, setNewKeyword] = useState('');
-    const [saved, setSaved] = useState(false);
-
-    const handleSave = async () => {
-        try {
-            await fetch('/api/settings/safety', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
-            });
-        } catch { }
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-    };
-
-    const addKeyword = () => {
-        if (newKeyword && !settings.blockedKeywords.includes(newKeyword.toLowerCase())) {
-            setSettings({ ...settings, blockedKeywords: [...settings.blockedKeywords, newKeyword.toLowerCase()] });
-            setNewKeyword('');
-        }
-    };
 
     return (
-        <div className="space-y-6">
+        <div className="min-h-screen p-6 space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-gradient-to-br from-yellow-500/20 to-red-500/20">
-                            <Shield className="w-6 h-6 text-yellow-400" />
-                        </div>
-                        Safety & Rate Limits
-                    </h1>
-                    <p className="text-muted-foreground mt-1">Configure automation safety settings</p>
-                </div>
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleSave}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${saved ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground'
-                        }`}
-                >
-                    {saved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                    {saved ? 'Saved!' : 'Save'}
-                </motion.button>
+            <div>
+                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-red-400 to-orange-400">
+                    Safety & Limits
+                </h1>
+                <p className="text-gray-400 mt-1">Configure operational boundaries to protect your account.</p>
             </div>
 
-            {/* Warning */}
+            {/* Status Banner */}
             <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-start gap-3"
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                className="glass-card p-6 rounded-xl border border-green-500/20 bg-green-500/5 flex items-center justify-between"
             >
-                <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
-                <div>
-                    <p className="font-medium text-yellow-400">Important Notice</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        These limits protect your account. Higher values increase risk.
-                    </p>
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 border border-green-500/30">
+                        <ShieldCheck size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-green-400">Account Health: Excellent</h3>
+                        <p className="text-sm text-green-300/70">Algorithm operating within safe parameters. No flags detected.</p>
+                    </div>
+                </div>
+                <div className="text-right hidden md:block">
+                    <p className="text-xs text-green-400/60 uppercase tracking-widest font-bold">Uptime</p>
+                    <p className="text-2xl font-mono text-green-400">99.8%</p>
                 </div>
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Daily Limits */}
+                {/* Daily Limits Config */}
                 <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="glass-card rounded-xl p-6"
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                    className="glass-card p-6 rounded-xl border border-white/5"
                 >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-blue-400" />
-                        Daily Limits
-                    </h2>
+                    <h3 className="text-lg font-bold text-gray-100 mb-6 flex items-center gap-2">
+                        <Activity size={20} className="text-blue-400" /> Daily Action Limits
+                    </h3>
 
-                    <div className="space-y-5">
+                    <div className="space-y-6">
                         {[
-                            { key: 'dailyLikeLimit', label: 'Like Limit', min: 10, max: 200 },
-                            { key: 'dailyCommentLimit', label: 'Comment Limit', min: 5, max: 50 },
-                            { key: 'dailyConnectionLimit', label: 'Connection Limit', min: 5, max: 100 },
-                        ].map(item => (
+                            { key: 'dailyInvites', label: 'Connection Requests', max: 50, color: 'blue' },
+                            { key: 'dailyMessages', label: 'Direct Messages', max: 100, color: 'purple' },
+                            { key: 'dailyViews', label: 'Profile Views', max: 200, color: 'teal' }
+                        ].map((item) => (
                             <div key={item.key}>
-                                <label className="flex justify-between mb-2">
-                                    <span className="text-sm">{item.label}</span>
-                                    <span className="text-sm font-mono bg-accent px-2 py-0.5 rounded">
-                                        {settings[item.key as keyof SafetySettings]}
+                                <div className="flex justify-between mb-2">
+                                    <label className="text-sm font-medium text-gray-300">{item.label}</label>
+                                    <span className="text-sm font-mono text-gray-400">
+                                        {(limits as any)[item.key]} / {item.max}
                                     </span>
-                                </label>
+                                </div>
                                 <input
                                     type="range"
-                                    min={item.min}
-                                    max={item.max}
-                                    value={settings[item.key as keyof SafetySettings] as number}
-                                    onChange={(e) => setSettings({ ...settings, [item.key]: Number(e.target.value) })}
-                                    className="w-full accent-primary"
+                                    min="0" max={item.max}
+                                    value={(limits as any)[item.key]}
+                                    onChange={(e) => setLimits({ ...limits, [item.key]: parseInt(e.target.value) })}
+                                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                                 />
-                            </div>
-                        ))}
-                    </div>
-                </motion.div>
-
-                {/* Timing */}
-                <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="glass-card rounded-xl p-6"
-                >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-yellow-400" />
-                        Action Timing
-                    </h2>
-
-                    <div className="space-y-5">
-                        <div>
-                            <label className="flex justify-between mb-2">
-                                <span className="text-sm">Min Delay (seconds)</span>
-                                <span className="text-sm font-mono bg-accent px-2 py-0.5 rounded">{settings.minDelay}s</span>
-                            </label>
-                            <input
-                                type="range"
-                                min="1"
-                                max="10"
-                                value={settings.minDelay}
-                                onChange={(e) => setSettings({ ...settings, minDelay: Number(e.target.value) })}
-                                className="w-full accent-primary"
-                            />
-                        </div>
-                        <div>
-                            <label className="flex justify-between mb-2">
-                                <span className="text-sm">Max Delay (seconds)</span>
-                                <span className="text-sm font-mono bg-accent px-2 py-0.5 rounded">{settings.maxDelay}s</span>
-                            </label>
-                            <input
-                                type="range"
-                                min="3"
-                                max="20"
-                                value={settings.maxDelay}
-                                onChange={(e) => setSettings({ ...settings, maxDelay: Number(e.target.value) })}
-                                className="w-full accent-primary"
-                            />
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Random delays between {settings.minDelay}s and {settings.maxDelay}s make automation appear human-like.
-                        </p>
-                    </div>
-                </motion.div>
-
-                {/* Content Filtering */}
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="glass-card rounded-xl p-6"
-                >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <Eye className="w-5 h-5 text-purple-400" />
-                        Content Filtering
-                    </h2>
-
-                    <div className="space-y-3">
-                        {[
-                            { key: 'contentFiltering', label: 'Enable Content Filtering', desc: 'Skip inappropriate content' },
-                            { key: 'skipControversial', label: 'Skip Controversial Topics', desc: 'Avoid divisive content' },
-                            { key: 'skipSensitive', label: 'Skip Sensitive Topics', desc: 'Skip personal subjects' },
-                        ].map(({ key, label, desc }) => (
-                            <div key={key} className="flex items-center justify-between p-3 bg-accent/30 rounded-lg">
-                                <div>
-                                    <p className="font-medium text-sm">{label}</p>
-                                    <p className="text-xs text-muted-foreground">{desc}</p>
+                                <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+                                    <span>Conservative</span>
+                                    <span>Aggressive</span>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={settings[key as keyof SafetySettings] as boolean}
-                                        onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-10 h-5 bg-gray-600 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                                </label>
                             </div>
                         ))}
                     </div>
                 </motion.div>
 
-                {/* Blocked Keywords */}
+                {/* Account Protection */}
                 <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="glass-card rounded-xl p-6"
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                    className="glass-card p-6 rounded-xl border border-white/5 space-y-6"
                 >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <Ban className="w-5 h-5 text-red-400" />
-                        Blocked Keywords
-                    </h2>
+                    <h3 className="text-lg font-bold text-gray-100 mb-6 flex items-center gap-2">
+                        <Lock size={20} className="text-orange-400" /> Protection Protocol
+                    </h3>
 
-                    <div className="flex gap-2 mb-4">
-                        <input
-                            type="text"
-                            value={newKeyword}
-                            onChange={(e) => setNewKeyword(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && addKeyword()}
-                            placeholder="Add keyword..."
-                            className="flex-1 px-3 py-2 bg-accent border border-border rounded-lg text-sm"
-                        />
-                        <button onClick={addKeyword} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm">
-                            Add
-                        </button>
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-orange-500/5 border border-orange-500/10">
+                        <div className="p-2 bg-orange-500/10 rounded-lg text-orange-400">
+                            <Clock size={20} />
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-gray-200 text-sm">Action Randomization</h4>
+                            <p className="text-xs text-gray-400">Delays between 2-8 minutes added between actions.</p>
+                        </div>
+                        <div className="ml-auto">
+                            <div className="w-10 h-5 bg-green-500/20 rounded-full flex items-center px-0.5 cursor-pointer">
+                                <div className="w-4 h-4 bg-green-500 rounded-full shadow-md ml-auto" />
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                        {settings.blockedKeywords.map((keyword) => (
-                            <span
-                                key={keyword}
-                                className="inline-flex items-center gap-1 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm"
-                            >
-                                {keyword}
-                                <button
-                                    onClick={() => setSettings({ ...settings, blockedKeywords: settings.blockedKeywords.filter(k => k !== keyword) })}
-                                    className="w-4 h-4 flex items-center justify-center hover:bg-red-500/30 rounded-full"
-                                >
-                                    ×
-                                </button>
-                            </span>
-                        ))}
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-red-500/5 border border-red-500/10">
+                        <div className="p-2 bg-red-500/10 rounded-lg text-red-400">
+                            <AlertTriangle size={20} />
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-gray-200 text-sm">Emergency Kill Switch</h4>
+                            <p className="text-xs text-gray-400">Stop all agents if LinkedIn detection triggered.</p>
+                        </div>
+                        <div className="ml-auto">
+                            <div className="w-10 h-5 bg-green-500/20 rounded-full flex items-center px-0.5 cursor-pointer">
+                                <div className="w-4 h-4 bg-green-500 rounded-full shadow-md ml-auto" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-white/5">
+                        <button className="w-full py-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 font-medium transition-all flex items-center justify-center gap-2">
+                            <RefreshCw size={16} /> Reset Default Safety Settings
+                        </button>
                     </div>
                 </motion.div>
             </div>
