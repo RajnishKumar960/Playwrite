@@ -51,33 +51,39 @@ class GrowthManager:
             "session_end": None
         }
 
-    def run_outreach_phase(self, page, max_requests=25):
+    def run_outreach_phase(self, page, max_requests=25, streamer=None):
         """PHASE 1: The Outreach Loop"""
         print(f"\n{'='*60}")
         print(f"PHASE 1: OUTREACH LOOP (Target: {max_requests} requests)")
         print(f"{'='*60}")
+        if streamer: streamer.send_log(f"Starting Phase 1: Outreach (Target: {max_requests})")
 
         leads = read_leads(self.sheet_id)
         # Filter for rows where status is EMPTY
         target_leads = [l for l in leads if not l.get("status") or l.get("status").strip() == ""]
         
         print(f"Found {len(target_leads)} leads with empty status.")
+        if streamer: streamer.send_log(f"Found {len(target_leads)} potential leads")
         
         count = 0
         for lead in target_leads:
             if count >= max_requests:
                 break
             
+            if streamer: streamer.capture_and_send()
+            
             profile_url = lead.get("profile_url")
             row_number = lead.get("row_number")
             
             print(f"\nProcessing Row {row_number}: {profile_url}")
+            if streamer: streamer.send_log(f"Processing lead: {lead.get('name', 'Unknown')}")
             
             if page.is_closed():
                 print("❌ Browser page was closed unexpectedly. Stopping outreach.")
                 break
                 
             if navigate_to_profile(page, profile_url):
+                if streamer: streamer.capture_and_send()
                 degree = get_connection_degree(page)
                 print(f"  Connection Degree: {degree}")
                 
@@ -98,11 +104,10 @@ class GrowthManager:
                     update_lead_status(self.sheet_id, row_number, status="Connection Sent", notes=f"DRY RUN - {datetime.now().strftime('%Y-%m-%d')}")
                     count += 1
                     self.stats["connections_sent"] += 1
-                    # Skip actual sending but proceed to analysis trigger if desired
-                    # For dry run, we still want to test the analysis trigger
                 else:
                     # Execute: Send connection request
                     print(f"  → Generating personalized note...")
+                    if streamer: streamer.send_log("Generating personalized note...")
                     from lib.profile_posts import get_profile_name
                     from lib.connections import generate_connection_note
                     
@@ -121,12 +126,13 @@ class GrowthManager:
                         print(f"  📝 Generated Note: {note[:60]}...")
                     
                     print(f"  → Sending connection request...")
+                    if streamer: streamer.send_log("Sending connection request...")
                     req_result = send_connection_request(page, profile_url, note=note)
+                    if streamer: streamer.capture_and_send()
                 
                 # Check status (either real or dry-run)
                 if self.dry_run or (req_result and req_result["status"] == "pending"):
                     if not self.dry_run:
-                        # Immediate Update: Status and Current Date
                         today_str = datetime.now().strftime("%Y-%m-%d")
                         update_lead_status(
                             self.sheet_id, 
@@ -137,19 +143,22 @@ class GrowthManager:
                         count += 1
                         self.stats["connections_sent"] += 1
                         print(f"  ✓ Logged: Connection Sent ({count}/{max_requests})")
+                        if streamer: streamer.send_action("connected", name or "Lead")
                     
                     # --- NEW: Immediate Top-to-Bottom Analysis (Day 1) ---
                     print(f"  🔍 Performing Day 1 Top-to-Bottom Analysis...")
-                    self.analyze_lead_day_1(page, lead, row_number)
+                    if streamer: streamer.send_log("Starting Day 1 Analysis...")
+                    self.analyze_lead_day_1(page, lead, row_number, streamer=streamer)
                 elif not self.dry_run:
                     print(f"  ✗ Failed: {req_result.get('reason')}")
+                    if streamer: streamer.send_log(f"Connection failed: {req_result.get('reason')}", "error")
                     update_lead_status(self.sheet_id, row_number, status="Error", notes=req_result.get("reason"))
                 
                 human_sleep(3, 7)
         
         print(f"\nOutreach Phase Complete. Sent: {self.stats['connections_sent']}")
 
-    def analyze_lead_day_1(self, page, lead, row_number):
+    def analyze_lead_day_1(self, page, lead, row_number, streamer=None):
         """Analyze profile and posts immediately after connection."""
         profile_url = lead.get("profile_url")
         lead_name = lead.get("name")
@@ -158,6 +167,7 @@ class GrowthManager:
         print("  📜 Scrolling profile top to bottom...")
         for _ in range(3):
             smooth_scroll(page, random.randint(800, 1200))
+            if streamer: streamer.capture_and_send()
             human_sleep(1, 2)
             
         # 2. Extract bio/about for pain points
@@ -172,6 +182,7 @@ class GrowthManager:
         # 3. Read posts (navigate to activity)
         print("  📝 Reading recent posts...")
         posts = get_recent_posts(page, max_posts=5, max_days=14)
+        if streamer: streamer.capture_and_send()
         
         # 4. Analyze pain points
         all_pain_points = []
@@ -190,6 +201,8 @@ class GrowthManager:
         # 5. Record in DB as Day 1
         pain_points_unique = list(set(all_pain_points))
         print(f"  📊 Day 1 Pain Points: {', '.join(pain_points_unique[:5]) or 'None found'}")
+        if streamer and pain_points_unique:
+             streamer.send_log(f"Identified {len(pain_points_unique)} pain points")
         
         # Sync with lead_store
         lead_id = get_or_create_lead(profile_url, name=lead_name, sheet_row=row_number)
@@ -209,12 +222,14 @@ class GrowthManager:
                 pain_points=pain_str, 
                 notes=f"Day 1 Analysis Complete"
             )
+            if streamer: streamer.send_action("analyzed", lead_name or "Lead")
 
-    def run_engagement_phase(self, page, duration_minutes=30):
+    def run_engagement_phase(self, page, duration_minutes=30, streamer=None):
         """PHASE 2: The Engagement Loop"""
         print(f"\n{'='*60}")
         print(f"PHASE 2: ENGAGEMENT LOOP (Duration: {duration_minutes} min)")
         print(f"{'='*60}")
+        if streamer: streamer.send_log("Starting Phase 2: Feed Engagement")
 
         if self.dry_run:
             print("[DRY RUN] Skipping engagement loop timer.")
@@ -225,6 +240,7 @@ class GrowthManager:
         # Navigate to Home Feed
         page.goto("https://www.linkedin.com/feed/", wait_until="networkidle")
         human_sleep(3, 5)
+        if streamer: streamer.capture_and_send()
 
         end_time = datetime.now() + timedelta(minutes=duration_minutes)
         
@@ -239,10 +255,11 @@ class GrowthManager:
                 
                 # Check for 1st-degree connection posts primarily as per network focus
                 author_text = post.get("author", "")
-                post_text = post.get("text", "")
                 
                 # We process the post
                 print(f"\nProcessing post from: {author_text}")
+                
+                if streamer: streamer.capture_and_send()
                 
                 success = process_post(
                     page, 
@@ -255,12 +272,16 @@ class GrowthManager:
                 if success:
                     self.stats["lights_clicked"] += 1
                     self.stats["comments_posted"] += 1
+                    if streamer: streamer.send_action("engaged", author_text)
                 
                 mark_processed(post["id"])
+                
+                if streamer: streamer.capture_and_send()
                 human_sleep(5, 12)
             
             # Scroll naturally
             smooth_scroll(page, random.randint(400, 800))
+            if streamer: streamer.capture_and_send()
             human_sleep(2, 4)
 
     def print_report(self):
@@ -278,17 +299,26 @@ class GrowthManager:
         print(f"  Likes Given:         {self.stats['lights_clicked']}")
         print("="*60 + "\n")
 
-def run_growth_cycle(max_connections=25, engagement_duration=30, headful=True, dry_run=False):
+def run_growth_cycle(max_connections=25, engagement_duration=30, headful=True, dry_run=False, stream=False):
     manager = GrowthManager(headful=headful, dry_run=dry_run)
     
+    streamer = None
+    if stream:
+        from agent_streaming import AgentStreamingRunner
+        streamer = AgentStreamingRunner('growthManager')
+        streamer.connect()
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not headful, slow_mo=50)
         storage_state = "auth.json" if os.path.exists("auth.json") else None
         context = browser.new_context(viewport={"width": 1280, "height": 900}, storage_state=storage_state)
         page = context.new_page()
 
+        if streamer: streamer.set_page(page)
+
         if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
             print("Login failed. Check session or credentials.")
+            if streamer: streamer.send_log("Login failed", "error")
             if headful:
                 print("Press Enter once logged in...")
                 input()
@@ -296,18 +326,21 @@ def run_growth_cycle(max_connections=25, engagement_duration=30, headful=True, d
                 browser.close()
                 return
 
+        if streamer: streamer.capture_and_send()
+
         try:
             # Phase 1: Outreach
-            manager.run_outreach_phase(page, max_requests=max_connections)
+            manager.run_outreach_phase(page, max_requests=max_connections, streamer=streamer)
             
             # Phase 2: Engagement
-            manager.run_engagement_phase(page, duration_minutes=engagement_duration)
+            manager.run_engagement_phase(page, duration_minutes=engagement_duration, streamer=streamer)
             
             # Phase 3: Reporting
             manager.print_report()
             
         finally:
             context.storage_state(path="auth.json")
+            if streamer: streamer.disconnect()
             browser.close()
 
 if __name__ == "__main__":
@@ -315,7 +348,9 @@ if __name__ == "__main__":
     parser.add_argument("--max-connections", type=int, default=25, help="Max connections to send (default: 25)")
     parser.add_argument("--duration", type=int, default=30, help="Engagement duration in minutes (default: 30)")
     parser.add_argument("--headful", action="store_true", help="Run with visible browser")
-    parser.add_argument("--dry-run", action="store_true", help="Perform actions without actually sending/posting")
+    parser.add_argument("--dry_run", action="store_true", help="Perform actions without actually sending/posting")
+    parser.add_argument("--dry-run", action="store_true", dest="dry_run", help="Perform actions without actually sending/posting")
+    parser.add_argument("--stream", action="store_true", help="Enable dashboard streaming")
     
     args = parser.parse_args()
     
@@ -323,5 +358,6 @@ if __name__ == "__main__":
         max_connections=args.max_connections,
         engagement_duration=args.duration,
         headful=args.headful,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
+        stream=args.stream
     )

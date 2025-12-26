@@ -27,7 +27,7 @@ app = Flask(__name__)
 DAILY_MAX_REQUESTS = int(os.getenv("DAILY_MAX_REQUESTS", "30"))
 
 
-from paired_agent import run_campaign_logic
+from enhanced_paired_agent import run_deep_feed_analysis
 from lib.openai_comments import generate_openai_comment as make_comment_text
 from lib.auth import login
 

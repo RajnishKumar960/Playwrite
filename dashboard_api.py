@@ -403,6 +403,10 @@ def start_lead_campaign():
 def start_connection_checker():
     return start_agent('connectionChecker', 'connection_checker.py', ['--limit', '30', '--duration', '15', '--stream'])
 
+@app.route('/api/agents/start/growthManager', methods=['POST'])
+def start_growth_manager():
+    return start_agent('growthManager', 'growth_manager_agent.py', ['--max-connections', '5', '--duration', '30', '--stream'])
+
 @app.route('/api/agents/start/allAgents', methods=['POST'])
 def start_all_agents():
     return start_agent('allAgents', 'run_all_agents.py', ['--duration', '15', '--stream'])
@@ -534,8 +538,8 @@ if __name__ == '__main__':
     print("\n" + "=" * 60)
     print("   TSI Dashboard API Server v2.0")
     print("=" * 60)
-    print("  HTTP:      http://localhost:4000")
-    print("  Stream WS: ws://localhost:4000/ws/stream")
+    print("  HTTP:      http://localhost:5000")
+    print("  Stream WS: ws://localhost:5000/ws/stream")
     print("=" * 60 + "\n")
     
     app.run(host='0.0.0.0', port=5000)
