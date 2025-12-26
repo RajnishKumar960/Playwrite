@@ -143,7 +143,10 @@ class GrowthManager:
                         count += 1
                         self.stats["connections_sent"] += 1
                         print(f"  ✓ Logged: Connection Sent ({count}/{max_requests})")
-                        if streamer: streamer.send_action("connected", name or "Lead")
+                        if streamer: streamer.send_action("connected", name or "Lead", {
+                            "bio": bio[:100] + "...",
+                            "note": note[:50] + "..." if note else "Default connection"
+                        })
                     
                     # --- NEW: Immediate Top-to-Bottom Analysis (Day 1) ---
                     print(f"  🔍 Performing Day 1 Top-to-Bottom Analysis...")
@@ -272,7 +275,10 @@ class GrowthManager:
                 if success:
                     self.stats["lights_clicked"] += 1
                     self.stats["comments_posted"] += 1
-                    if streamer: streamer.send_action("engaged", author_text)
+                    if streamer: streamer.send_action("engaged", author_text, {
+                        "type": "engagement_loop",
+                        "post_preview": post.get("text", "")[:100] + "..."
+                    })
                 
                 mark_processed(post["id"])
                 

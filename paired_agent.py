@@ -67,7 +67,7 @@ def stop_streaming():
     _streaming_enabled = False
 
 
-def run_paired_agent(max_likes=50, headful=True, dry_run=False, duration_minutes=None, stream=False):
+def run_paired_agent(max_likes=50, headful=True, dry_run=False, duration_minutes=None, stream=False, post_comments=False):
     """Run the paired agent for LinkedIn engagement."""
     
     print("\n" + "=" * 50)
@@ -111,7 +111,10 @@ def run_paired_agent(max_likes=50, headful=True, dry_run=False, duration_minutes
         capture_screenshot()
         
         # Navigate to feed
-        page.goto("https://www.linkedin.com/feed/", timeout=30000)
+        try:
+            page.goto("https://www.linkedin.com/feed/", timeout=60000, wait_until="domcontentloaded")
+        except Exception as e:
+            stream_log(f"Navigation warning: {str(e)[:50]}", "warning")
         human_sleep(2, 3)
         capture_screenshot()
         
@@ -143,41 +146,68 @@ def run_paired_agent(max_likes=50, headful=True, dry_run=False, duration_minutes
                     text_el = post.locator(".feed-shared-update-v2__description, .feed-shared-text")
                     post_text = text_el.first.inner_text() if text_el.count() > 0 else ""
                     
+                    # Get author name
+                    author_name = "Unknown"
+                    try:
+                        author_el = post.locator(".update-components-actor__title, .feed-shared-actor__title, span.hoverable-link-text").first
+                        if author_el.count() > 0:
+                            author_raw = author_el.inner_text()
+                            author_name = author_raw.split("\n")[0].strip()
+                    except: pass
+                    
                     if not post_text or len(post_text) < 20:
                         continue
                     
-                    # Skip if processed
-                    post_id = post_text[:50]
+                    # Log finding post
+                    stream_log(f"Analyzing post by {author_name}...", "info")
+                    
+                    # Unique ID for idempotency (first 100 chars of text)
+                    post_id = f"{author_name}:{post_text[:100]}"
                     if has_processed(post_id):
                         continue
                     
                     # Safety check
                     safe, reason = safe_to_like({"text": post_text})
                     if not safe:
-                        stream_log(f"Skipping: {reason}", "warning")
+                        stream_log(f"Skipping {author_name}: {reason}", "warning")
                         continue
                     
                     # Like the post
                     like_btn = post.locator("button[aria-label*='Like'], button[aria-label*='like']")
                     if like_btn.count() > 0:
                         btn = like_btn.first
-                        if btn.get_attribute("aria-pressed") != "true":
+                        
+                        # Double check if already liked
+                        is_pressed = btn.get_attribute("aria-pressed") == "true"
+                        btn_text = btn.inner_text().lower()
+                        if not is_pressed and "unlike" not in btn_text:
                             if not dry_run:
                                 btn.click()
                                 liked += 1
-                                stream_log(f"Liked post ({liked}/{max_likes})", "success")
+                                stream_log(f"Liked post by {author_name} ({liked}/{max_likes})", "success")
+                                
+                                # Send detailed action to dashboard
+                                if _streaming_enabled and _streamer:
+                                    _streamer.send_action('liked', author_name, {
+                                        'post_preview': post_text[:100] + "...",
+                                        'timestamp': datetime.now().isoformat()
+                                    })
+                                
                                 mark_processed(post_id)
                                 capture_screenshot()
                             else:
-                                stream_log(f"[DRY RUN] Would like post", "info")
+                                stream_log(f"[DRY RUN] Would like post by {author_name}", "info")
                             
                             human_sleep(2, 4)
+                        else:
+                            stream_log(f"Post by {author_name} already liked. Skipping.", "info")
                     
-                    # Comment (first 2 posts always, then 50% chance)
-                    should_comment = (commented < 2) or (random.random() < 0.5)
+                    # Comment logic
+                    should_comment = post_comments and ((commented < 2) or (random.random() < 0.5))
                     
                     if should_comment and not dry_run:
-                        ai_result = generate_openai_comment({"text": post_text})
+                        # Pass both text and author for personalization
+                        ai_result = generate_openai_comment({"text": post_text, "author": author_name})
                         if ai_result.get("action") == "COMMENT":
                             comment_text = ai_result.get("comment", "")
                             if comment_text:
@@ -191,16 +221,24 @@ def run_paired_agent(max_likes=50, headful=True, dry_run=False, duration_minutes
                                     editor = page.locator("div.ql-editor, div[contenteditable='true']").first
                                     if editor.is_visible():
                                         editor.fill(comment_text)
-                                        human_sleep(0.5, 1)
+                                        human_sleep(1, 2)
                                         
                                         # Post
                                         submit_btn = page.locator("button.artdeco-button--primary").first
                                         if submit_btn.is_visible():
                                             submit_btn.click()
                                             commented += 1
-                                            stream_log(f"Commented: {comment_text[:30]}...", "success")
+                                            stream_log(f"Commented on {author_name}'s post", "success")
+                                            
+                                            # Send detailed action to dashboard
+                                            if _streaming_enabled and _streamer:
+                                                _streamer.send_action('commented', author_name, {
+                                                    'comment': comment_text,
+                                                    'post_preview': post_text[:100] + "..."
+                                                })
+                                            
                                             capture_screenshot()
-                                            human_sleep(2, 4)
+                                            human_sleep(3, 5)
                 
                 except Exception as e:
                     stream_log(f"Error: {str(e)[:50]}", "error")
@@ -230,6 +268,7 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true", help="Preview mode")
     parser.add_argument("--duration", type=int, default=None, help="Duration in minutes")
     parser.add_argument("--stream", action="store_true", help="Stream to dashboard")
+    parser.add_argument("--post-comments", action="store_true", help="Enable AI commenting")
     
     args = parser.parse_args()
     
@@ -238,5 +277,6 @@ if __name__ == "__main__":
         headful=args.headful,
         dry_run=args.dry_run,
         duration_minutes=args.duration,
-        stream=args.stream
+        stream=args.stream,
+        post_comments=args.post_comments
     )

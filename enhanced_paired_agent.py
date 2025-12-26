@@ -192,6 +192,10 @@ def process_post(page, post_item, should_comment=True, post_comments=True, safe_
                 human_sleep(1.0)
                 print("  ✓ Keyboard submit attempted")
             
+            # Report Pain Points if found
+            if ai_decision.get("pain_points") and hasattr(page, 'streamer') and page.streamer:
+                page.streamer.send_action("pain_points", author_name, {"points": ai_decision["pain_points"]})
+
             human_sleep(2.0)
             
         except Exception as e:

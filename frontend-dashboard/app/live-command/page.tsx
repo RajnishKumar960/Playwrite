@@ -3,33 +3,43 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Play, Square, AlertTriangle, Cpu, Command } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const MOCK_LOGS = [
-    { time: "10:00:01", level: "INFO", message: "System initialized. Starting sequence..." },
-    { time: "10:00:02", level: "INFO", message: "Connecting to LinkedIn secure gateway..." },
-    { time: "10:00:04", level: "SUCCESS", message: "Connection established (Latency: 45ms)" },
-    { time: "10:00:15", level: "INFO", message: "Loading profile cache..." },
-];
+import { useAgentStore } from '@/lib/store';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 
 export default function LiveCommandPage() {
-    const [isRunning, setIsRunning] = useState(false);
-    const [logs, setLogs] = useState(MOCK_LOGS);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const [selectedAgent, setSelectedAgent] = useState<string>('feedWarmer');
 
+    // Get agent store
+    const { agentStatus, logs, startAgent, stopAgent, syncLogs, syncStatus } = useAgentStore();
+
+    // Sync on mount and periodically
+    useEffect(() => {
+        syncStatus();
+        syncLogs();
+        const interval = setInterval(() => {
+            syncStatus();
+            syncLogs();
+        }, 3000); // Sync every 3 seconds
+        return () => clearInterval(interval);
+    }, [syncStatus, syncLogs]);
+
+    // Auto scroll logs
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [logs]);
 
-    const toggleAgent = () => {
-        setIsRunning(!isRunning);
-        const newLog = {
-            time: new Date().toLocaleTimeString(),
-            level: isRunning ? "WARN" : "INFO",
-            message: isRunning ? "Agent shutdown sequence initiated." : "Agent startup command received."
-        };
-        setLogs(prev => [...prev, newLog]);
+    const isRunning = agentStatus[selectedAgent] === 'running';
+
+    const toggleAgent = async () => {
+        if (isRunning) {
+            await stopAgent(selectedAgent);
+        } else {
+            await startAgent(selectedAgent);
+        }
     };
 
     return (
@@ -58,8 +68,8 @@ export default function LiveCommandPage() {
                         <div className="flex justify-between items-center">
                             <span className="text-gray-300 font-medium">Status</span>
                             <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${isRunning
-                                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                    : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
                                 }`}>
                                 {isRunning ? (
                                     <>
@@ -75,8 +85,8 @@ export default function LiveCommandPage() {
                         <button
                             onClick={toggleAgent}
                             className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg ${isRunning
-                                    ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 shadow-red-900/10'
-                                    : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-emerald-900/10'
+                                ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 shadow-red-900/10'
+                                : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-emerald-900/10'
                                 }`}
                         >
                             {isRunning ? <Square fill="currentColor" size={20} /> : <Play fill="currentColor" size={20} />}
@@ -126,15 +136,16 @@ export default function LiveCommandPage() {
 
                     <div ref={scrollRef} className="flex-1 p-4 font-mono text-sm overflow-y-auto scrollbar-thin space-y-1">
                         {logs.map((log, i) => (
-                            <div key={i} className="flex gap-3 animate-in fade-in duration-300">
-                                <span className="text-gray-500 shrink-0 select-none">[{log.time}]</span>
-                                <span className={`shrink-0 font-bold w-16 ${log.level === 'INFO' ? 'text-blue-400' :
-                                        log.level === 'WARN' ? 'text-yellow-400' :
-                                            log.level === 'ERROR' ? 'text-red-400' :
-                                                'text-green-400'
+                            <div key={log.id || i} className="flex gap-3 animate-in fade-in duration-300">
+                                <span className="text-gray-500 shrink-0 select-none">[{log.timestamp}]</span>
+                                <span className={`shrink-0 font-bold w-16 ${log.type === 'info' ? 'text-blue-400' :
+                                    log.type === 'warning' ? 'text-yellow-400' :
+                                        log.type === 'error' ? 'text-red-400' :
+                                            'text-green-400'
                                     }`}>
-                                    {log.level}
+                                    {log.type.toUpperCase()}
                                 </span>
+                                <span className="text-gray-500 shrink-0">[{log.agent}]</span>
                                 <span className="text-gray-300 break-all">{log.message}</span>
                             </div>
                         ))}

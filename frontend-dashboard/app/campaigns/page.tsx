@@ -7,6 +7,7 @@ import {
     Search, Filter, LayoutGrid, List as ListIcon
 } from "lucide-react";
 import StatsCard from "@/components/dashboard/StatsCard";
+import { api } from "@/lib/api";
 
 export default function CampaignsPage() {
     const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -20,8 +21,7 @@ export default function CampaignsPage() {
 
     const fetchCampaigns = async () => {
         try {
-            const res = await fetch("http://localhost:5000/api/campaigns");
-            const data = await res.json();
+            const data = await api.campaigns.list();
             setCampaigns(data.campaigns || []);
         } catch (error) {
             console.error("Failed to fetch campaigns", error);

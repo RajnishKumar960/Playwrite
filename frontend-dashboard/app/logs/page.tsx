@@ -2,27 +2,38 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useQuery } from '@tanstack/react-query'
 import { Search, Download, Filter, MessageSquare, ThumbsUp, UserPlus, Calendar } from 'lucide-react'
-
-// Mock data - replace with React Query later
-const MOCK_LOGS = [
-    { id: 1, type: 'comment', target: 'Sarah Connor', content: 'Great insights on AI automation!', date: '2025-12-26 10:30', status: 'success' },
-    { id: 2, type: 'like', target: 'John Doe', content: 'Post about LinkedIn growth strategies', date: '2025-12-26 10:15', status: 'success' },
-    { id: 3, type: 'connection', target: 'Michael Smith', content: 'Connection request sent', date: '2025-12-26 09:45', status: 'pending' },
-    { id: 4, type: 'comment', target: 'TechCrunch', content: 'Interesting perspective on automation trends', date: '2025-12-26 09:20', status: 'success' },
-    { id: 5, type: 'like', target: 'Emily Davis', content: 'Product launch announcement', date: '2025-12-26 08:55', status: 'success' },
-    { id: 6, type: 'connection', target: 'Robert Wilson', content: 'Connection request sent', date: '2025-12-26 08:30', status: 'accepted' },
-    { id: 7, type: 'comment', target: 'Jane Wilson', content: 'Appreciate your thoughts on remote work!', date: '2025-12-25 18:10', status: 'success' },
-    { id: 8, type: 'like', target: 'Alex Johnson', content: 'Article on SaaS metrics', date: '2025-12-25 17:45', status: 'success' },
-]
+import { api } from '@/lib/api'
 
 export default function LogsPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [filterType, setFilterType] = useState<'all' | 'comment' | 'like' | 'connection'>('all')
 
-    const filteredLogs = MOCK_LOGS.filter(log => {
-        const matchesSearch = log.target.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            log.content.toLowerCase().includes(searchQuery.toLowerCase())
+    // Fetch real logs from API
+    const { data: logsData } = useQuery({
+        queryKey: ['logs'],
+        queryFn: () => api.logs.get(100),
+        refetchInterval: 5000, // Refresh every 5 seconds
+    })
+
+    const MOCK_LOGS = [
+        { id: 1, type: 'comment', target: 'Sarah Connor', content: 'Great insights on AI automation!', date: '2025-12-26 10:30', status: 'success', agent: 'feedWarmer' },
+        { id: 2, type: 'like', target: 'John Doe', content: 'Post about LinkedIn growth strategies', date: '2025-12-26 10:15', status: 'success', agent: 'feedWarmer' },
+        { id: 3, type: 'connection', target: 'Michael Smith', content: 'Connection request sent', date: '2025-12-26 09:45', status: 'pending', agent: 'leadCampaign' },
+        { id: 4, type: 'comment', target: 'TechCrunch', content: 'Interesting perspective on automation trends', date: '2025-12-26 09:20', status: 'success', agent: 'feedWarmer' },
+        { id: 5, type: 'like', target: 'Emily Davis', content: 'Product launch announcement', date: '2025-12-26 08:55', status: 'success', agent: 'feedWarmer' },
+        { id: 6, type: 'connection', target: 'Robert Wilson', content: 'Connection request sent', date: '2025-12-26 08:30', status: 'accepted', agent: 'leadCampaign' },
+        { id: 7, type: 'comment', target: 'Jane Wilson', content: 'Appreciate your thoughts on remote work!', date: '2025-12-25 18:10', status: 'success', agent: 'feedWarmer' },
+        { id: 8, type: 'like', target: 'Alex Johnson', content: 'Article on SaaS metrics', date: '2025-12-25 17:45', status: 'success', agent: 'feedWarmer' },
+    ]
+
+    // Use real logs if available, otherwise fallback to mock
+    const allLogs = logsData?.logs || MOCK_LOGS
+
+    const filteredLogs = allLogs.filter((log: any) => {
+        const matchesSearch = (log.target?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+            (log.message?.toLowerCase() || log.content?.toLowerCase() || '').includes(searchQuery.toLowerCase())
         const matchesType = filterType === 'all' || log.type === filterType
         return matchesSearch && matchesType
     })
@@ -88,8 +99,8 @@ export default function LogsPage() {
                                 key={type}
                                 onClick={() => setFilterType(type)}
                                 className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${filterType === type
-                                        ? 'bg-red-600 text-white'
-                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                    ? 'bg-red-600 text-white'
+                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
                                     }`}
                             >
                                 {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -102,7 +113,7 @@ export default function LogsPage() {
             {/* Results Count */}
             <div className="flex items-center gap-2 text-sm text-gray-400">
                 <Filter size={16} />
-                Showing {filteredLogs.length} of {MOCK_LOGS.length} interactions
+                Showing {filteredLogs.length} of {allLogs.length} interactions
             </div>
 
             {/* Logs Table */}
@@ -126,7 +137,7 @@ export default function LogsPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredLogs.map((log, index) => (
+                                filteredLogs.map((log: any, index: number) => (
                                     <motion.tr
                                         key={log.id}
                                         initial={{ opacity: 0, y: 10 }}
@@ -169,8 +180,8 @@ export default function LogsPage() {
                     <button
                         key={page}
                         className={`px-3 py-1 text-sm rounded ${page === 1
-                                ? 'bg-red-600 text-white'
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            ? 'bg-red-600 text-white'
+                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
                             }`}
                     >
                         {page}

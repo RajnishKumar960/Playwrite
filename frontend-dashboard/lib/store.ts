@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { api } from './api';
 
 type AgentStatus = 'stopped' | 'running' | 'paused';
 
@@ -79,13 +80,11 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
     startAgent: async (agent) => {
         try {
-            const res = await fetch(`/api/agents/start/${agent}`, { method: 'POST' });
-            if (res.ok) {
-                set((state) => ({
-                    agentStatus: { ...state.agentStatus, [agent]: 'running' },
-                }));
-                get().addLog(`${agent} started`, 'success', agent);
-            }
+            await api.agents.start(agent);
+            set((state) => ({
+                agentStatus: { ...state.agentStatus, [agent]: 'running' },
+            }));
+            get().addLog(`${agent} started`, 'success', agent);
         } catch (error) {
             get().addLog(`Failed to start ${agent}`, 'error', 'system');
         }
@@ -93,13 +92,11 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
     stopAgent: async (agent) => {
         try {
-            const res = await fetch(`/api/agents/stop/${agent}`, { method: 'POST' });
-            if (res.ok) {
-                set((state) => ({
-                    agentStatus: { ...state.agentStatus, [agent]: 'stopped' },
-                }));
-                get().addLog(`${agent} stopped`, 'info', agent);
-            }
+            await api.agents.stop(agent);
+            set((state) => ({
+                agentStatus: { ...state.agentStatus, [agent]: 'stopped' },
+            }));
+            get().addLog(`${agent} stopped`, 'info', agent);
         } catch (error) {
             get().addLog(`Failed to stop ${agent}`, 'error', 'system');
         }
@@ -107,7 +104,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
     stopAllAgents: async () => {
         try {
-            await fetch('/api/agents/stop-all', { method: 'POST' });
+            await api.agents.stopAll();
             set({
                 agentStatus: {
                     feedWarmer: 'stopped',
@@ -124,12 +121,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
     syncLogs: async () => {
         try {
-            const res = await fetch('/api/logs?limit=100');
-            if (res.ok) {
-                const data = await res.json();
-                if (data.logs) {
-                    set({ logs: data.logs });
-                }
+            const data = await api.logs.get(100);
+            if (data.logs) {
+                set({ logs: data.logs });
             }
         } catch {
             // Ignore sync errors
@@ -138,14 +132,11 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
     syncStatus: async () => {
         try {
-            const res = await fetch('/api/agents/status');
-            if (res.ok) {
-                const data = await res.json();
-                set({
-                    agentStatus: data.agents || get().agentStatus,
-                    isConnected: true,
-                });
-            }
+            const data = await api.agents.status();
+            set({
+                agentStatus: data.agents || get().agentStatus,
+                isConnected: true,
+            });
         } catch {
             set({ isConnected: false });
         }

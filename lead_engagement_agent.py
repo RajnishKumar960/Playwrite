@@ -334,7 +334,10 @@ def process_lead(
     print(f"{'='*60}")
     
     if streamer:
-        streamer.send_action("visiting", lead_name or profile_url)
+        streamer.send_action("visiting", lead_name or profile_url, {
+            "company": company,
+            "row": row_number
+        })
         streamer.send_log(f"Processing lead: {lead_name}")
     
     try:
@@ -460,7 +463,11 @@ def process_lead(
                     if not is_connected:
                         print(f"  ✓ Engaged with 1 post - moving to next lead")
                     if streamer: 
-                        streamer.send_action("engaged", lead_name, {"type": "like/comment"})
+                        streamer.send_action("engaged", lead_name, {
+                            "type": "like/comment",
+                            "post_preview": post.get("text", "")[:100] + "...",
+                            "comment": engagement.get("comment_text") or "Liked only"
+                        })
                         streamer.capture_and_send()
                 
             # Aggregate pain points from all analyzed posts

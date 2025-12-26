@@ -12,7 +12,7 @@ class AgentStreamingRunner:
         self.agent_name = agent_name
         self.ws = None
         self.page = None
-        self.ws_url = os.getenv('DASHBOARD_WS_URL', 'ws://localhost:5000/ws/stream')
+        self.ws_url = os.getenv('DASHBOARD_WS_URL', 'ws://localhost:4000/ws/stream')
     
     def connect(self) -> bool:
         """Connect to dashboard WebSocket."""

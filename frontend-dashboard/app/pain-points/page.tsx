@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Search, AlertCircle, CheckCircle2, FileText, ArrowRight } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export default function PainPointsPage() {
     const [url, setUrl] = useState('');
@@ -18,19 +19,18 @@ export default function PainPointsPage() {
         setIsAnalyzing(true);
         setResult(null);
 
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            const data = await api.intelligence.analyzeProfile(url);
+            if (data.status === 'ok') {
+                setResult(data.result);
+            } else {
+                console.error("Analysis Failed", data.error);
+            }
+        } catch (e) {
+            console.error("Neural Sync Error", e);
+        } finally {
             setIsAnalyzing(false);
-            setResult({
-                name: "Sarah Connors",
-                painPoints: [
-                    "struggling with manual lead generation",
-                    "tired of low response rates on LinkedIn",
-                    "needs a scalable automation solution"
-                ],
-                summary: "Recent posts indicate frustration with time management sales tools. Bio emphasizes 'efficiency' and 'scaling'."
-            });
-        }, 2000);
+        }
     };
 
     return (

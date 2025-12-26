@@ -29,10 +29,10 @@ interface NavItem {
 const navItems: NavItem[] = [
     { title: 'Dashboard', href: '/', icon: LayoutDashboard },
     { title: 'Live Agent', href: '/live-view', icon: MonitorPlay, badge: 'Live' },
-    { title: 'Lead Intelligence', href: '/leads', icon: Users },
-    { title: 'Connections', href: '/connections', icon: UserPlus },
-    { title: 'Safety', href: '/safety', icon: ShieldAlert },
-    { title: 'Admin', href: '/admin', icon: Shield },
+    { title: 'Lead CRM', href: '/leads', icon: Users },
+    { title: 'Neural Intel', href: '/pain-points', icon: Zap },
+    { title: 'Networking', href: '/connections', icon: UserPlus },
+    { title: 'Safety Hub', href: '/safety', icon: ShieldAlert },
     { title: 'Settings', href: '/settings', icon: Settings },
 ];
 

@@ -25,6 +25,8 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${inter.className} min-h-screen text-gray-100 overflow-hidden`}>
         <Providers>
+          <div className="animated-bg" />
+          <div className="bg-grid-animate" />
           <InteractiveBackground />
 
           <div className="flex h-screen relative z-10">

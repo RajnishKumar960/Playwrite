@@ -2,17 +2,54 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import {
     LayoutDashboard, TrendingUp, Users, UserPlus,
-    Target, Brain, ArrowUpRight, Zap, Activity
+    Target, Brain, ArrowUpRight, Zap, Activity, BarChart3, LineChart as LineChartIcon
 } from 'lucide-react';
+import {
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    BarChart, Bar, Legend, LineChart, Line
+} from 'recharts';
+import { cn } from '@/lib/utils';
 import StatsCard from '@/components/dashboard/StatsCard';
-import AnalyticsChart from '@/components/dashboard/AnalyticsChart';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
+import { api } from '@/lib/api';
 
 export default function DashboardPage() {
-    // Mock Data for Charts
-    const WEEKLY_DATA = [
+    // Fetch real data from API
+    const { data: weeklyData } = useQuery({
+        queryKey: ['charts', 'weekly'],
+        queryFn: () => api.charts.weekly(),
+        refetchInterval: 30000,
+    });
+
+    const { data: activityData } = useQuery({
+        queryKey: ['activity'],
+        queryFn: () => api.activity.get(),
+        refetchInterval: 10000,
+    });
+
+    const { data: leadsStats } = useQuery({
+        queryKey: ['leads', 'stats'],
+        queryFn: () => api.leads.stats(),
+        refetchInterval: 30000,
+    });
+
+    const { data: painPointsData } = useQuery({
+        queryKey: ['analytics', 'pain-points'],
+        queryFn: () => api.fetch('/api/analytics/pain-points'),
+        refetchInterval: 60000,
+    });
+
+    const { data: connectionsData } = useQuery({
+        queryKey: ['connections'],
+        queryFn: () => api.connections.get(),
+        refetchInterval: 30000,
+    });
+
+    // Fallback Data
+    const WEEKLY_DATA = weeklyData?.data || [
         { day: "Mon", likes: 45, comments: 12, connections: 8 },
         { day: "Tue", likes: 52, comments: 18, connections: 12 },
         { day: "Wed", likes: 38, comments: 15, connections: 6 },
@@ -22,174 +59,147 @@ export default function DashboardPage() {
         { day: "Sun", likes: 25, comments: 6, connections: 3 }
     ];
 
-    // Mock Data for Activity Feed
-    const RECENT_ACTIVITY = [
+    const RECENT_ACTIVITY = activityData?.recent || [
         { id: 1, action: "Replied to post", target: "Sarah Connor", time: "2m ago", type: "comment" },
         { id: 2, action: "Connection accepted", target: "John Doe", time: "15m ago", type: "connection" },
         { id: 3, action: "Liked post", target: "TechCrunch", time: "1h ago", type: "like" },
-        { id: 4, action: "Viewed profile", target: "Michael Smith", time: "2h ago", type: "view" },
-        { id: 5, action: "System update", target: "v2.1 deployed", time: "5h ago", type: "other" }
     ];
 
+    const totalLeads = leadsStats?.total || 0;
+    const totalConnections = connectionsData?.stats?.accepted || leadsStats?.connected || 0;
+    const engagementRate = totalLeads > 0 ? Math.round(((leadsStats?.engaged || 0) / totalLeads) * 100) : 0;
+    const painPointsCount = painPointsData?.data?.length || 0;
+
+    const pipelineData = [
+        { label: "New Leads", value: totalLeads, color: "bg-blue-500", percentage: "100%" },
+        { label: "Contacted", value: leadsStats?.engaged || 0, color: "bg-violet-500", percentage: `${totalLeads > 0 ? Math.round(((leadsStats?.engaged || 0) / totalLeads) * 100) : 0}%` },
+        { label: "Replies", value: leadsStats?.replied || 0, color: "bg-pink-500", percentage: `${(leadsStats?.engaged || 0) > 0 ? Math.round(((leadsStats?.replied || 0) / (leadsStats?.engaged || 0)) * 100) : 0}%` },
+    ];
+
+    const topPainPoints = (painPointsData?.data || []).slice(0, 3);
+
     return (
-        <div className="min-h-screen p-6 space-y-8 pb-20">
+        <div className="min-h-screen p-6 space-y-8 pb-20 relative overflow-hidden">
             {/* Command Center Header */}
             <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-white/5 pb-6">
                 <div>
-                    <h1 className="text-4xl font-black bg-clip-text text-transparent bg-linear-to-r from-blue-400 via-purple-400 to-pink-400">
-                        COMMAND CENTER
+                    <h1 className="text-4xl font-black bg-clip-text text-transparent bg-linear-to-r from-blue-400 via-purple-400 to-pink-400 uppercase italic tracking-tighter">
+                        COMMAND <span className="text-white">CENTER</span>
                     </h1>
-                    <p className="text-gray-400 mt-2 flex items-center gap-2">
-                        <Activity size={16} className="text-green-400 animate-pulse" />
-                        System is active and monitoring
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.4em] mt-2 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                        Neural Nexus v4.2 // ONLINE
                     </p>
-                </div>
-                <div className="flex gap-3">
-                    <button className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-gray-300 border border-white/10 transition-colors">
-                        Download Report
-                    </button>
-                    <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white font-semibold shadow-lg shadow-blue-600/20 transition-all hover:scale-105">
-                        + New Campaign
-                    </button>
                 </div>
             </div>
 
             {/* KPI Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatsCard
-                    label="Total Leads"
-                    value={1284}
-                    trend="+12%"
-                    icon={Users}
-                    color="from-red-600 to-orange-600"
-                    sparklineData={[10, 15, 12, 18, 20, 25, 22, 30]}
-                />
-                <StatsCard
-                    label="Connections"
-                    value={432}
-                    trend="+5%"
-                    icon={UserPlus}
-                    color="from-orange-600 to-amber-600"
-                    sparklineData={[5, 8, 6, 9, 12, 10, 14, 16]}
-                />
-                <StatsCard
-                    label="Engagement"
-                    value={89}
-                    suffix="%"
-                    trend="+2%"
-                    icon={Zap}
-                    color="from-red-500 to-pink-600"
-                    sparklineData={[60, 65, 70, 68, 75, 80, 85, 89]}
-                />
-                <StatsCard
-                    label="Pain Points"
-                    value={156}
-                    trend="+24"
-                    icon={Brain}
-                    color="from-gray-600 to-gray-400"
-                    sparklineData={[2, 4, 3, 8, 12, 15, 18, 24]}
-                />
+                <StatsCard label="Total Extraction" value={totalLeads} trend="+12%" icon={Users} color="from-blue-600 to-indigo-600" sparklineData={[10, 15, 12, 18, 20, 25, 22, 30]} />
+                <StatsCard label="Verified Connects" value={totalConnections} trend="+5%" icon={UserPlus} color="from-violet-600 to-purple-600" sparklineData={[5, 8, 6, 9, 12, 10, 14, 16]} />
+                <StatsCard label="Conversion Rate" value={engagementRate} suffix="%" trend="OPTIMAL" icon={Zap} color="from-rose-500 to-pink-600" sparklineData={[60, 65, 70, 68, 75, 80, 85, 89]} />
+                <StatsCard label="Neural Insights" value={painPointsCount} trend="SYNCHRONIZED" icon={Brain} color="from-gray-700 to-gray-500" sparklineData={[2, 4, 3, 8, 12, 15, 18, 24]} />
             </div>
 
-            {/* Main Content Areas */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                {/* Left Column: Analytics & Funnel (2/3 width) */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* Weekly Analytics Chart */}
-                    <div className="glass-card p-6 rounded-2xl border border-white/5">
+                {/* Left: Analytics Wave (8 cols) */}
+                <div className="lg:col-span-8 space-y-6">
+                    <div className="glass-card p-6 rounded-2xl border border-white/5 bg-black/20 min-h-[400px]">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-gray-100 flex items-center gap-2">
-                                <TrendingUp className="text-blue-400" size={20} />
-                                Weekly Performance
+                            <h3 className="text-xs font-black text-gray-100 flex items-center gap-2 uppercase tracking-[0.2em] italic">
+                                <Activity className="text-blue-400" size={16} />
+                                Neural Connection Pulse
                             </h3>
-                            <select className="bg-black/30 border border-white/10 rounded-lg text-xs text-gray-400 px-2 py-1 outline-none">
-                                <option>Last 7 Days</option>
-                                <option>Last 30 Days</option>
-                            </select>
+                            <div className="flex gap-4 text-[8px] font-black uppercase tracking-widest text-gray-500">
+                                <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Connections</div>
+                                <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Accepted</div>
+                            </div>
                         </div>
-                        <div className="h-64">
-                            <AnalyticsChart data={WEEKLY_DATA} />
+                        <div className="h-[300px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={WEEKLY_DATA}>
+                                    <defs>
+                                        <linearGradient id="colorCon" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorAcc" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 'bold' }} dy={10} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 'bold' }} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '10px' }}
+                                        itemStyle={{ fontWeight: 'bold', textTransform: 'uppercase' }}
+                                    />
+                                    <Area type="monotone" dataKey="connections" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorCon)" />
+                                    <Area type="monotone" dataKey="likes" stroke="#a855f7" strokeWidth={3} fillOpacity={1} fill="url(#colorAcc)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
 
-                    {/* Funnel & Campaigns Split */}
                     <div className="grid md:grid-cols-2 gap-6">
-                        {/* Lead Funnel */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                            className="glass-card p-6 rounded-2xl border border-white/5"
-                        >
-                            <h3 className="text-lg font-bold text-gray-100 mb-4 flex items-center gap-2">
-                                <Target className="text-emerald-400" size={20} />
-                                Lead Pipeline
+                        {/* Pipelines */}
+                        <div className="glass-card p-6 rounded-2xl border border-white/5 bg-black/20">
+                            <h3 className="text-xs font-black text-white mb-6 uppercase tracking-widest italic flex items-center gap-2">
+                                <Target size={16} className="text-emerald-400" />
+                                Operational Funnel
                             </h3>
-                            <div className="space-y-4">
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-xs text-gray-400">
-                                        <span>New Leads</span>
-                                        <span>450</span>
-                                    </div>
-                                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-blue-500 w-[80%]" />
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-xs text-gray-400">
-                                        <span>Contacted</span>
-                                        <span>280</span>
-                                    </div>
-                                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-violet-500 w-[60%]" />
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-xs text-gray-400">
-                                        <span>Replies</span>
-                                        <span>45</span>
-                                    </div>
-                                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-pink-500 w-[15%]" />
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        {/* Recent Pain Points */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                            className="glass-card p-6 rounded-2xl border border-white/5"
-                        >
-                            <h3 className="text-lg font-bold text-gray-100 mb-4 flex items-center gap-2">
-                                <Brain className="text-pink-400" size={20} />
-                                Identified Pain Points
-                            </h3>
-                            <div className="space-y-3">
-                                {[
-                                    "Struggling with manual outreach",
-                                    "Low conversion on cold email",
-                                    "Needs automated CRM sync"
-                                ].map((point, i) => (
-                                    <div key={i} className="flex items-start gap-2 text-sm text-gray-300 p-2 rounded-lg bg-white/5 border border-white/5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-pink-500 mt-1.5 shrink-0" />
-                                        <span>{point}</span>
+                            <div className="space-y-6">
+                                {pipelineData.map((stage, i) => (
+                                    <div key={i} className="space-y-2">
+                                        <div className="flex justify-between items-end">
+                                            <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{stage.label}</span>
+                                            <span className="text-xs font-black text-white italic">{stage.value}</span>
+                                        </div>
+                                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                            <motion.div initial={{ width: 0 }} animate={{ width: stage.percentage }} className={cn("h-full", stage.color)} />
+                                        </div>
                                     </div>
                                 ))}
                             </div>
-                        </motion.div>
+                        </div>
+
+                        {/* Recent Insights */}
+                        <div className="glass-card p-6 rounded-2xl border border-white/5 bg-black/20">
+                            <h3 className="text-xs font-black text-white mb-6 uppercase tracking-widest italic flex items-center gap-2">
+                                <Brain size={16} className="text-pink-400" />
+                                Neural Intelligence
+                            </h3>
+                            <div className="space-y-3">
+                                {topPainPoints.map((item: any, i: number) => (
+                                    <div key={i} className="flex items-start gap-4 p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-pink-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
+                                        <span className="text-[10px] font-bold text-gray-300 leading-tight uppercase tracking-tighter">{item.point}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Right Column: Live Feed & Agents (1/3 width) */}
-                <div className="space-y-6">
-                    {/* Live Activity Feed */}
-                    <div className="glass-card p-6 rounded-2xl border border-white/5 h-full max-h-[600px] overflow-hidden flex flex-col">
-                        <h3 className="text-lg font-bold text-gray-100 mb-4 flex items-center gap-2">
-                            <Activity className="text-orange-400" size={20} />
-                            Live Activity
-                        </h3>
-                        <div className="flex-1 overflow-y-auto scrollbar-thin -mr-4 pr-4">
+                {/* Right: Activity Pulse (4 cols) */}
+                <div className="lg:col-span-4">
+                    <div className="glass-card rounded-2xl border border-white/5 bg-black/20 h-full flex flex-col">
+                        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+                            <h3 className="text-xs font-black text-gray-100 flex items-center gap-2 uppercase tracking-[0.2em] italic">
+                                <BarChart3 className="text-orange-400" size={16} />
+                                Global Activity Wave
+                            </h3>
+                            <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                        </div>
+                        <div className="flex-1 p-6 overflow-y-auto scrollbar-hide">
                             <ActivityFeed activities={RECENT_ACTIVITY} />
+                        </div>
+                        <div className="p-4 bg-blue-600/10 border-t border-blue-500/10">
+                            <button className="w-full py-3 rounded-xl text-[9px] font-black text-blue-400 uppercase tracking-[0.3em] hover:bg-blue-600 hover:text-white transition-all italic border border-blue-500/20">
+                                ACCESS FEED →
+                            </button>
                         </div>
                     </div>
                 </div>
