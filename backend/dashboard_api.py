@@ -19,8 +19,12 @@ from werkzeug.exceptions import HTTPException
 load_dotenv()
 
 app = Flask(__name__)
-# Allow any origin in production for simplicity, or the specific Vercel URL
-CORS(app, resources={r"/*": {"origins": "*"}})
+# Explicitly allow all methods and headers for Vercel communication
+CORS(app, resources={r"/*": {
+    "origins": "*",
+    "methods": ["GET", "POST", "OPTIONS"],
+    "allow_headers": ["Content-Type", "Authorization"]
+}})
 sock = Sock(app)
 
 @app.errorhandler(HTTPException)
@@ -35,12 +39,21 @@ def handle_http_exception(e):
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Global error handler for unhandled exceptions."""
-    print(f"GLOBAL ERROR: {e}")
+    # Log the error but don't crash the handler
+    try:
+        print(f"GLOBAL ERROR: {str(e)}")
+    except:
+        pass
     return jsonify({
         "error": "Internal Server Error",
-        "message": str(e),
+        "message": "An unexpected error occurred on the server.",
         "status": "error"
     }), 200
+
+@app.route('/api/health')
+def health_check():
+    """Health check for Render deployment."""
+    return jsonify({"status": "ok", "message": "Mission Control Backend Online"}), 200
 
 # State
 agent_status = {

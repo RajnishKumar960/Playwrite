@@ -42,3 +42,7 @@ node_modules/
 .DS_Store
 Thumbs.db
 service_account.json
+
+# Next.js
+.next/
+out/

@@ -46,7 +46,7 @@ export default function LiveViewPage() {
         console.log("Connecting to surveillance stream:", wsUrl);
         wsRef.current = new WebSocket(wsUrl);
 
-        wsRef.current.onmessage = (event) => {
+        wsRef.current.onmessage = (event: MessageEvent) => {
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'log') {
@@ -57,6 +57,21 @@ export default function LiveViewPage() {
             } catch (e) {
                 console.error("Surveillance Data Error", e);
             }
+        };
+
+        wsRef.current.onopen = () => {
+            console.log("Surveillance Uplink: ESTABLISHED");
+            addLog("SUCCESS", "Surveillance Uplink: ESTABLISHED");
+        };
+
+        wsRef.current.onclose = () => {
+            console.log("Surveillance Uplink: SEVERED");
+            addLog("ERROR", "Surveillance Uplink: SEVERED");
+        };
+
+        wsRef.current.onerror = (e: any) => {
+            console.error("Uplink Error:", e);
+            addLog("ERROR", "Uplink Error: Protocol breach detected.");
         };
 
         return () => {
@@ -134,7 +149,7 @@ export default function LiveViewPage() {
     };
 
     const addLog = (level: string, message: string) => {
-        setLogs(prev => [...prev.slice(-100), {
+        setLogs((prev: any[]) => [...prev.slice(-100), {
             time: new Date().toLocaleTimeString(),
             level,
             message
@@ -286,9 +301,9 @@ export default function LiveViewPage() {
                                 <div key={i} className="flex gap-4 group transition-colors hover:bg-white/5 p-1.5 rounded-lg border border-transparent hover:border-white/5">
                                     <span className="text-gray-600 shrink-0 select-none">[{log.time}]</span>
                                     <span className={`shrink-0 font-black italic ${log.level === 'INFO' ? 'text-blue-400' :
-                                            log.level === 'WARN' ? 'text-amber-400' :
-                                                log.level === 'ERROR' ? 'text-red-400' :
-                                                    'text-green-400'
+                                        log.level === 'WARN' ? 'text-amber-400' :
+                                            log.level === 'ERROR' ? 'text-red-400' :
+                                                'text-green-400'
                                         }`}>
                                         {log.level}
                                     </span>

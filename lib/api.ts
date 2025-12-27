@@ -2,8 +2,13 @@
  * API Client for Dashboard Backend
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000';
+// Sanitize URLs: Remove trailing slash and ensure protocol is correct
+const sanitizeUrl = (url: string) => url.replace(/\/$/, '');
+
+const API_URL = sanitizeUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000');
+const WS_URL = sanitizeUrl(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000')
+    .replace('http://', 'ws://')
+    .replace('https://', 'wss://');
 
 export const api = {
     // Base fetch with proper error handling

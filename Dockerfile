@@ -29,4 +29,4 @@ ENV PORT=8080
 ENV PYTHONUNBUFFERED=1
 
 # Run with Gunicorn using gevent worker for WebSockets
-CMD ["gunicorn", "-k", "gevent", "--workers", "1", "--bind", "0.0.0.0:8080", "--timeout", "600", "dashboard_api:app"]
+CMD ["sh", "-c", "gunicorn -k gevent --workers 1 --bind 0.0.0.0:$PORT --timeout 600 dashboard_api:app"]
