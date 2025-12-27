@@ -12,10 +12,21 @@ const sanitizeUrl = (url: string) => {
     return sanitized;
 };
 
-const API_URL = sanitizeUrl(process.env.NEXT_PUBLIC_API_URL || 'https://tsi-mission-control.onrender.com');
-const WS_URL = sanitizeUrl(process.env.NEXT_PUBLIC_WS_URL || 'wss://tsi-mission-control.onrender.com')
+// Initial URLs from Env or Fallback
+let API_URL = sanitizeUrl(process.env.NEXT_PUBLIC_API_URL || 'https://tsi-mission-control.onrender.com');
+let WS_URL = sanitizeUrl(process.env.NEXT_PUBLIC_WS_URL || 'wss://tsi-mission-control.onrender.com')
     .replace('http://', 'ws://')
     .replace('https://', 'wss://');
+
+// Production Fail-safe: If running on Vercel/External but URL is localhost, FORCE Render
+if (typeof window !== 'undefined' &&
+    !window.location.hostname.includes('localhost') &&
+    !window.location.hostname.includes('127.0.0.1') &&
+    (API_URL.includes('localhost') || API_URL.includes('127.0.0.1'))) {
+    console.warn("⚠️ Production Fail-safe triggered: Localhost API detected on non-local domain. Redirecting to Render production.");
+    API_URL = 'https://tsi-mission-control.onrender.com';
+    WS_URL = 'wss://tsi-mission-control.onrender.com';
+}
 
 export const api = {
     // Base fetch with proper error handling
