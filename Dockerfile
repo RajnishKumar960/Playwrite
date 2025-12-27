@@ -18,12 +18,12 @@ RUN playwright install chromium
 # Copy the rest of the application
 COPY . .
 
-# Expose port (Leapcell often uses 8080)
+# Expose port (Defaulting to 8080)
 EXPOSE 8080
 
 # Environment variables
-ENV PLAY_API_PORT=8080
+ENV PORT=8080
 ENV PYTHONUNBUFFERED=1
 
-# Run with Gunicorn (Production Server)
-CMD ["gunicorn", "--workers", "1", "--bind", "0.0.0.0:8080", "--timeout", "600", "play_api:app"]
+# Run with Gunicorn using gevent worker for WebSockets
+CMD ["gunicorn", "-k", "gevent", "--workers", "1", "--bind", "0.0.0.0:8080", "--timeout", "600", "dashboard_api:app"]

@@ -3,27 +3,26 @@
 
 services:
   - type: web
-    name: tsi-linkedin-automation
+    name: tsi-mission-control
     runtime: docker
     dockerfilePath: ./Dockerfile
-    region: oregon
-    plan: starter  # $7/month - required for persistent disk
-    healthCheckPath: /health
+    region: oregon # or frankfurt
+    plan: starter  # Disk requires at least the Starter plan
+    healthCheckPath: /api/health
+    disk:
+      name: tsi-data
+      mountPath: /app/data
+      sizeGB: 1
     envVars:
-      # LinkedIn Credentials (set in Render dashboard)
       - key: LINKEDIN_EMAIL
         sync: false
       - key: LINKEDIN_PASSWORD
         sync: false
-      # OpenAI API Key
       - key: OPENAI_API_KEY
         sync: false
-      # Google Sheets
-      - key: GOOGLE_SHEET_ID
-        sync: false
-      # API Security Key
+      - key: DATABASE_URL
+        value: /app/data/tsi_leads.db
       - key: PLAY_API_KEY
         sync: false
-      # Port (Render sets this automatically)
       - key: PORT
         value: 8080

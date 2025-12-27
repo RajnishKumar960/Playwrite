@@ -19,7 +19,8 @@ from werkzeug.exceptions import HTTPException
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000"])
+# Allow any origin in production for simplicity, or the specific Vercel URL
+CORS(app, resources={r"/*": {"origins": "*"}})
 sock = Sock(app)
 
 @app.errorhandler(HTTPException)
@@ -55,7 +56,7 @@ stream_clients = []
 LOGS_DIR = Path('logs')
 LOGS_DIR.mkdir(exist_ok=True)
 
-DB_PATH = 'tsi_leads.db'
+DB_PATH = os.getenv('DATABASE_URL', 'tsi_leads.db')
 
 def init_db():
     """Ensure database schema is ready for Mission Control."""
@@ -952,11 +953,12 @@ def logs_socket(ws):
         pass
 
 if __name__ == '__main__':
+    port = int(os.getenv('PORT', 4000))
     print("\n" + "=" * 60)
     print("   TSI Dashboard API Server v2.0")
     print("=" * 60)
-    print("  HTTP:      http://localhost:4000")
-    print("  Stream WS: ws://localhost:4000/ws/stream")
+    print(f"  Port:      {port}")
+    print("  Stream WS: /ws/stream")
     print("=" * 60 + "\n")
     
-    app.run(host='0.0.0.0', port=4000)
+    app.run(host='0.0.0.0', port=port)

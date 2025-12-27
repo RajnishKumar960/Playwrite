@@ -1,7 +1,10 @@
 # Flask API Server
 flask==3.1.0
+flask-sock==0.7.2
+flask-cors==4.0.0
 gunicorn==21.2.0
-# werkzeug will be auto-installed by flask with compatible version
+gevent==23.9.1
+gevent-websocket==0.10.1
 
 # Environment & Configuration
 python-dotenv==1.0.0
