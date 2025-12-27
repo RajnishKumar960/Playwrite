@@ -1,0 +1,22 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/analytics/page": "app/analytics/page.js",
+  "/campaigns/page": "app/campaigns/page.js",
+  "/connections/page": "app/connections/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/forgot-password/page": "app/forgot-password/page.js",
+  "/inbox/page": "app/inbox/page.js",
+  "/leads/page": "app/leads/page.js",
+  "/live-command/page": "app/live-command/page.js",
+  "/live-view/page": "app/live-view/page.js",
+  "/login/page": "app/login/page.js",
+  "/logs/page": "app/logs/page.js",
+  "/page": "app/page.js",
+  "/pain-points/page": "app/pain-points/page.js",
+  "/register/page": "app/register/page.js",
+  "/reset-password/page": "app/reset-password/page.js",
+  "/safety/page": "app/safety/page.js",
+  "/settings/page": "app/settings/page.js"
+}

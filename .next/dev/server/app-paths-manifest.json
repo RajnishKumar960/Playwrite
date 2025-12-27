@@ -1,0 +1,11 @@
+{
+  "/analytics/page": "app/analytics/page.js",
+  "/campaigns/page": "app/campaigns/page.js",
+  "/connections/page": "app/connections/page.js",
+  "/leads/page": "app/leads/page.js",
+  "/live-view/page": "app/live-view/page.js",
+  "/page": "app/page.js",
+  "/pain-points/page": "app/pain-points/page.js",
+  "/safety/page": "app/safety/page.js",
+  "/settings/page": "app/settings/page.js"
+}
