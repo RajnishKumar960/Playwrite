@@ -51,8 +51,9 @@ def handle_exception(e):
     }), 200
 
 @app.route('/api/health')
+@app.route('/health')
 def health_check():
-    """Health check for Render deployment."""
+    """Health check for Render deployment (supports both /api/health and /health)."""
     return jsonify({"status": "ok", "message": "Mission Control Backend Online"}), 200
 
 # State
