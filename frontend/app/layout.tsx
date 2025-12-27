@@ -22,6 +22,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
+    <ClientLayout>{children}</ClientLayout>
+  );
+}
+
+function ClientLayout({ children }: { children: React.ReactNode }) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+
+  return (
     <html lang="en" className="dark">
       <body className={`${inter.className} min-h-screen text-gray-100 overflow-hidden`}>
         <Providers>
@@ -30,8 +38,19 @@ export default function RootLayout({
           <InteractiveBackground />
 
           <div className="flex h-screen relative z-10">
+            {/* Mobile Menu Overlay */}
+            {isMobileMenuOpen && (
+              <div
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 md:hidden"
+                onClick={() => setIsMobileMenuOpen(false)}
+              />
+            )}
+
             {/* Glass Sidebar */}
-            <aside className="w-64 glass border-r border-white/10 hidden md:flex flex-col backdrop-blur-md bg-black/30">
+            <aside className={`
+                fixed inset-y-0 left-0 z-50 w-64 glass border-r border-white/10 flex flex-col backdrop-blur-md bg-black/90 transition-transform duration-300 md:translate-x-0 md:static md:bg-black/30
+                ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+            `}>
               <div className="p-6 border-b border-white/5 flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-900/20">
                   <Rocket className="text-white" size={20} />
@@ -80,8 +99,22 @@ export default function RootLayout({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto scrollbar-thin relative scroll-smooth">
-              {children}
+            <main className="flex-1 overflow-y-auto scrollbar-thin relative scroll-smooth flex flex-col">
+              {/* Mobile Header */}
+              <div className="md:hidden h-16 border-b border-white/10 flex items-center px-4 bg-black/40 backdrop-blur-md sticky top-0 z-30">
+                <button
+                  onClick={() => setIsMobileMenuOpen(true)}
+                  className="p-2 -ml-2 rounded-lg hover:bg-white/5 text-gray-400"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></svg>
+                </button>
+                <div className="ml-4 font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-orange-500">
+                  TSI Auto
+                </div>
+              </div>
+              <div className="relative flex-1">
+                {children}
+              </div>
             </main>
           </div>
         </Providers>

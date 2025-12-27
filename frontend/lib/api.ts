@@ -28,24 +28,42 @@ if (typeof window !== 'undefined' &&
     WS_URL = 'wss://tsi-mission-control.onrender.com';
 }
 
+const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 3, backoff = 1000): Promise<any> => {
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options?.headers,
+            },
+        });
+
+        if (!response.ok) {
+            // Retry on Server Errors (5xx) or Rate Limits (429)
+            if ((response.status >= 500 || response.status === 429) && retries > 0) {
+                console.warn(`API retry ${4 - retries}/3 for ${url} (Status: ${response.status})`);
+                await new Promise(r => setTimeout(r, backoff));
+                return fetchWithRetry(url, options, retries - 1, backoff * 2);
+            }
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    } catch (error) {
+        if (retries > 0) {
+            console.warn(`Connection retry ${4 - retries}/3 for ${url} (Error: ${error})`);
+            await new Promise(r => setTimeout(r, backoff));
+            return fetchWithRetry(url, options, retries - 1, backoff * 2);
+        }
+        throw error;
+    }
+};
+
 export const api = {
     // Base fetch with proper error handling
     async fetch(endpoint: string, options?: RequestInit) {
         const url = `${API_URL}${endpoint}`;
         try {
-            const response = await fetch(url, {
-                ...options,
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options?.headers,
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            return response.json();
+            return await fetchWithRetry(url, options);
         } catch (error) {
             console.error(`API Error [${endpoint}] to ${url}:`, error);
             throw new Error(`Connection Error: Failed to reach ${url}. Ensure environment variables are set in Vercel.`);
