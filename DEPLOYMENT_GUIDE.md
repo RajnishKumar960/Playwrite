@@ -1,39 +1,38 @@
 # Production Deployment Guide 🚀
 
-The repository is now fully prepared for production deployment. I have updated the `Dockerfile`, `render.yaml`, `requirements.txt`, and the API logic to support a seamless Vercel + Render orchestration.
+The repository has been restructured into an architecturally decoupled layout.
 
-## 📦 Deployment Overview
+## 📦 Project Structure
+- **`/frontend`**: Next.js Dashboard.
+- **`/backend`**: Flask API and Playwright Agents.
+
+---
+
+## 🚀 Deployment Overview
 
 ### 1. Backend (Render)
 - **Service Type:** Web Service (Docker)
-- **Branch:** `dashboard`
-- **Recommended Plan:** Starter ($7/month) — *Required for persistent lead data.*
+- **Repo Branch:** `dashboard`
+- **Root Directory:** `./` (Keep as root)
+- **Dockerfile Path:** `./Dockerfile`
 - **Environment Variables:**
   - `LINKEDIN_EMAIL`
   - `LINKEDIN_PASSWORD`
   - `OPENAI_API_KEY`
-  - `DATABASE_URL`: `/app/data/tsi_leads.db` (Configured in `render.yaml`)
-  - `PLAY_API_KEY`: (Optional) Your security key.
+  - `DATABASE_URL`: `/app/data/tsi_leads.db`
+  - `PLAY_API_KEY`: (Optional)
 
 ### 2. Frontend (Vercel)
+- **Root Directory:** `frontend`  <-- **CRITICAL: SET THIS IN VERCEL SETTINGS**
 - **Framework:** Next.js
-- **Root Directory:** `./` (Automatic detection)
-- **Environment Variables:**
-  - `NEXT_PUBLIC_API_URL`: Your Render URL (e.g., `https://tsi-mission-control.onrender.com`)
-  - `NEXT_PUBLIC_WS_URL`: Your Render WebSocket URL (e.g., `wss://tsi-mission-control.onrender.com`)
+- **Build Command:** `npm run build`
+- **Output Directory:** `.next`
+- **Environment Variables:** (Optional, as fallbacks are hardcoded)
 
-## 🛠️ Automated Setup
-The repository is now "Next.js First". Vercel will auto-detect your project settings.
-[RajnishKumar960/Playwrite (main branch)](https://github.com/RajnishKumar960/Playwrite)
+## 🛠️ Restructuring Benefits
+- **Clean Builds**: Vercel only sees the frontend code, reducing build times.
+- **Isolated Logic**: Backend agents are clearly separated from the UI logic.
+- **Zero Config**: The dashboard includes production fallbacks for immediate connectivity.
 
-### What has been updated:
-- **Unified Structure:** The dashboard is now at the root of the project for flawless Vercel deployments.
-- **Backend Isolation:** All agent code is safely located in the `/backend` folder.
-
-## 🚀 Final Steps
-1. Go to **Render** and create a "Web Service" from your `Playwrite` repo.
-2. Go to **Vercel** and create a project pointing to the `frontend-dashboard` folder.
-3. Add the environment variables mentioned above.
-
-> [!NOTE]
-> Once deployed, the frontend and backend will automatically synchronize. You can monitor the "Surveillance" status light in the dashboard to confirm the link is active.
+---
+**Mission Status: ARCHITECTURALLY SOUND 💎**
