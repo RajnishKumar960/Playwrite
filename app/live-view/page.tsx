@@ -6,7 +6,7 @@ import {
     Eye, Monitor, Wifi, Radio, Globe, Shield,
     Terminal, Play, Square, Cpu, Command, Activity, Zap, Users, Target, Maximize2, Minimize2, Pause, FastForward
 } from 'lucide-react';
-import { api, WS_URL } from '@/lib/api';
+import { api, API_URL, WS_URL } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 const MOCK_LOGS = [
@@ -21,6 +21,7 @@ export default function LiveViewPage() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const wsRef = useRef<WebSocket | null>(null);
     const [screenshot, setScreenshot] = useState<string | null>(null);
+    const [connectError, setConnectError] = useState<string | null>(null);
 
     // Config Modal State
     const [showConfig, setShowConfig] = useState(false);
@@ -116,8 +117,10 @@ export default function LiveViewPage() {
                 setRunningAgent(null);
                 setAgentStatus('stopped');
             }
-        } catch (err) {
-            addLog("ERROR", `Uplink Failed: ${err instanceof Error ? err.message : 'Connection Error'}`);
+        } catch (err: any) {
+            const msg = err instanceof Error ? err.message : 'Connection Error';
+            addLog("ERROR", `Uplink Failed: ${msg}`);
+            setConnectError(msg);
             setRunningAgent(null);
             setAgentStatus('stopped');
         }
@@ -326,6 +329,35 @@ export default function LiveViewPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Connection Diagnostic Helper */}
+            {connectError && (
+                <div className="fixed bottom-24 right-6 max-w-sm glass-card p-4 rounded-xl border border-red-500/20 bg-red-500/5 z-50">
+                    <div className="flex items-center gap-2 text-red-400 mb-2">
+                        <Wifi size={14} className="animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Diagnostic Info</span>
+                    </div>
+                    <div className="space-y-2 font-mono text-[9px]">
+                        <div className="bg-black/40 p-2 rounded border border-white/5">
+                            <span className="text-gray-500">API_URL:</span>
+                            <div className="text-gray-300 break-all">{API_URL || 'UNDEFINED'}</div>
+                        </div>
+                        <div className="bg-black/40 p-2 rounded border border-white/5">
+                            <span className="text-gray-500">WS_URL:</span>
+                            <div className="text-gray-300 break-all">{WS_URL || 'UNDEFINED'}</div>
+                        </div>
+                        <p className="text-gray-500 leading-tight">
+                            If URLs show "localhost", check your Vercel Environment Variables and **Redeploy**.
+                        </p>
+                        <button
+                            onClick={() => setConnectError(null)}
+                            className="w-full py-1.5 mt-2 rounded bg-white/5 hover:bg-white/10 text-gray-400 uppercase font-black border border-white/5"
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Tactical Configuration Modal */}
             <AnimatePresence>

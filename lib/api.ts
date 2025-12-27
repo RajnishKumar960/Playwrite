@@ -3,7 +3,14 @@
  */
 
 // Sanitize URLs: Remove trailing slash and ensure protocol is correct
-const sanitizeUrl = (url: string) => url.replace(/\/$/, '');
+const sanitizeUrl = (url: string) => {
+    let sanitized = url.replace(/\/$/, '');
+    // In production, force https if it's an external render URL
+    if (sanitized.includes('onrender.com') && sanitized.startsWith('http://')) {
+        sanitized = sanitized.replace('http://', 'https://');
+    }
+    return sanitized;
+};
 
 const API_URL = sanitizeUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000');
 const WS_URL = sanitizeUrl(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000')
@@ -29,8 +36,8 @@ export const api = {
 
             return response.json();
         } catch (error) {
-            console.error(`API Error [${endpoint}]:`, error);
-            throw error;
+            console.error(`API Error [${endpoint}] to ${url}:`, error);
+            throw new Error(`Connection Error: Failed to reach ${url}. Ensure environment variables are set in Vercel.`);
         }
     },
 
