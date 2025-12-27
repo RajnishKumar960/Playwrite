@@ -12,8 +12,8 @@ const sanitizeUrl = (url: string) => {
     return sanitized;
 };
 
-const API_URL = sanitizeUrl(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000');
-const WS_URL = sanitizeUrl(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000')
+const API_URL = sanitizeUrl(process.env.NEXT_PUBLIC_API_URL || 'https://tsi-mission-control.onrender.com');
+const WS_URL = sanitizeUrl(process.env.NEXT_PUBLIC_WS_URL || 'wss://tsi-mission-control.onrender.com')
     .replace('http://', 'ws://')
     .replace('https://', 'wss://');
 
