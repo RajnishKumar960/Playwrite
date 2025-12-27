@@ -140,10 +140,17 @@ def add_log(agent: str, message: str, log_type: str = 'info'):
         logs.pop()
 
 def get_python_path():
-    """Get Python path from venv if available."""
-    venv_python = Path('venv/bin/python')
-    if venv_python.exists():
-        return str(venv_python)
+    """Get Python path from venv if available, supporting Windows and Unix."""
+    # Windows path
+    venv_python_win = Path('venv/Scripts/python.exe')
+    if venv_python_win.exists():
+        return str(venv_python_win.absolute())
+    
+    # Unix path
+    venv_python_unix = Path('venv/bin/python')
+    if venv_python_unix.exists():
+        return str(venv_python_unix.absolute())
+        
     return 'python'
 
 # Routes
@@ -830,11 +837,14 @@ def start_agent(agent_name: str, script: str, args: list):
         port = os.getenv('PORT', '4000')
         env['DASHBOARD_WS_URL'] = f'ws://localhost:{port}/ws/stream'
         
+        # Use the directory where this script sits (backend/) as CWD for agents
+        backend_dir = Path(__file__).parent.absolute()
+        
         process = subprocess.Popen(
             cmd,
             stdout=log_handle,
             stderr=subprocess.STDOUT,
-            cwd=os.getcwd(),
+            cwd=str(backend_dir),
             env=env
         )
         
