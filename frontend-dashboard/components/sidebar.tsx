@@ -10,6 +10,7 @@ import {
     Settings,
     ChevronLeft,
     ChevronRight,
+    BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -29,6 +30,11 @@ const sidebarItems = [
         title: "Lead Intelligence",
         href: "/leads",
         icon: Users,
+    },
+    {
+        title: "Analytics",
+        href: "/analytics",
+        icon: BarChart3,
     },
     {
         title: "Settings",

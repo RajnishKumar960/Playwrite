@@ -143,6 +143,10 @@ def run_paired_agent(max_likes=50, headful=True, dry_run=False, duration_minutes
                     text_el = post.locator(".feed-shared-update-v2__description, .feed-shared-text")
                     post_text = text_el.first.inner_text() if text_el.count() > 0 else ""
                     
+                    # Get Author Name
+                    author_el = post.locator(".update-components-actor__name, .feed-shared-actor__name, span.update-components-actor__title").first
+                    author_name = author_el.inner_text().split("\n")[0].strip() if author_el.count() > 0 else "there"
+                    
                     if not post_text or len(post_text) < 20:
                         continue
                     
@@ -157,50 +161,69 @@ def run_paired_agent(max_likes=50, headful=True, dry_run=False, duration_minutes
                         stream_log(f"Skipping: {reason}", "warning")
                         continue
                     
-                    # Like the post
+                    # Check if already liked (Avoid double engagement)
                     like_btn = post.locator("button[aria-label*='Like'], button[aria-label*='like']")
+                    already_liked = False
+                    if like_btn.count() > 0:
+                        if like_btn.first.get_attribute("aria-pressed") == "true":
+                            already_liked = True
+                            
+                    if already_liked:
+                        stream_log("Skipping (Already liked)", "info")
+                        mark_processed(post_id) # Mark as seen so we don't re-check
+                        continue
+
+                    # Like the post
                     if like_btn.count() > 0:
                         btn = like_btn.first
-                        if btn.get_attribute("aria-pressed") != "true":
-                            if not dry_run:
-                                btn.click()
-                                liked += 1
-                                stream_log(f"Liked post ({liked}/{max_likes})", "success")
-                                mark_processed(post_id)
-                                capture_screenshot()
-                            else:
-                                stream_log(f"[DRY RUN] Would like post", "info")
-                            
-                            human_sleep(2, 4)
+                        if not dry_run:
+                            btn.click()
+                            liked += 1
+                            stream_log(f"Liked {author_name}'s post", "success")
+                            mark_processed(post_id)
+                            capture_screenshot()
+                        else:
+                            stream_log(f"[DRY RUN] Would like {author_name}'s post", "info")
+                        
+                        human_sleep(2, 4)
                     
                     # Comment (first 2 posts always, then 50% chance)
                     should_comment = (commented < 2) or (random.random() < 0.5)
                     
                     if should_comment and not dry_run:
-                        ai_result = generate_openai_comment({"text": post_text})
+                        # Personalize comment with author name
+                        ai_result = generate_openai_comment({"text": post_text, "author": author_name})
+                        
                         if ai_result.get("action") == "COMMENT":
                             comment_text = ai_result.get("comment", "")
                             if comment_text:
                                 # Click comment button
-                                comment_btn = post.locator("button[aria-label*='Comment']")
+                                comment_btn = post.locator("button[aria-label*='Comment'], button[aria-label*='comment']")
                                 if comment_btn.count() > 0:
                                     comment_btn.first.click()
                                     human_sleep(1, 2)
                                     
-                                    # Type comment
-                                    editor = page.locator("div.ql-editor, div[contenteditable='true']").first
+                                    # Type comment - Robust Selector Strategy
+                                    editor = page.locator("div.ql-editor, div.comments-comment-box__editor, div[contenteditable='true'][role='textbox']").first
                                     if editor.is_visible():
-                                        editor.fill(comment_text)
+                                        editor.click()
                                         human_sleep(0.5, 1)
+                                        editor.fill(comment_text)
+                                        human_sleep(1, 2)
                                         
-                                        # Post
-                                        submit_btn = page.locator("button.artdeco-button--primary").first
-                                        if submit_btn.is_visible():
+                                        # Click Post Button - Robust Selector Strategy
+                                        submit_btn = page.locator("button.comments-comment-box__submit-button--primary, button.artdeco-button--primary").first
+                                        
+                                        if submit_btn.is_visible() and submit_btn.is_enabled():
                                             submit_btn.click()
                                             commented += 1
-                                            stream_log(f"Commented: {comment_text[:30]}...", "success")
+                                            stream_log(f"Commented on {author_name}: {comment_text[:30]}...", "success")
                                             capture_screenshot()
-                                            human_sleep(2, 4)
+                                            human_sleep(3, 5)
+                                        else:
+                                             stream_log("Could not find/click Submit button", "error")
+                                    else:
+                                        stream_log("Could not find Comment Editor", "error")
                 
                 except Exception as e:
                     stream_log(f"Error: {str(e)[:50]}", "error")

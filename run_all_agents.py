@@ -93,9 +93,9 @@ def main():
     # Define agents and their commands
     agents = [
         {
-            "name": "Feed Warmer (Enhanced)",
+            "name": "Feed Warmer (Paired)",
             "command": [
-                python_path, "enhanced_paired_agent.py",
+                python_path, "paired_agent.py",
                 "--max", "50", 
                 "--duration", str(duration),
             ] + stream_flag,
@@ -138,6 +138,18 @@ def main():
     print("Starting agents...")
     start_time = datetime.now()
     
+    def cleanup(signum, frame):
+        print(f"\nReceived signal {signum}. Stopping agents...")
+        for p in processes:
+            try:
+                p["process"].terminate()
+            except:
+                pass
+        sys.exit(0)
+        
+    signal.signal(signal.SIGTERM, cleanup)
+    signal.signal(signal.SIGINT, cleanup)
+
     try:
         # Start all agents
         for agent in agents:
