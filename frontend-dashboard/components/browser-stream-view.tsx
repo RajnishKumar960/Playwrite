@@ -15,12 +15,47 @@ const MOCK_SCREENS = [
 
 type AgentStatus = "idle" | "running" | "paused" | "stopped";
 
+const AGENTS = [
+    { id: 'feedWarmer', label: 'Feed Warmer', apiPath: 'feedWarmer' },
+    { id: 'leadCampaign', label: 'Lead Agent', apiPath: 'leadCampaign' },
+    { id: 'connectionChecker', label: 'Connection Agent', apiPath: 'connectionChecker' },
+    { id: 'engagementAgent', label: 'Engagement Agent', apiPath: 'engagementAgent' }
+];
+
 export function BrowserStreamView() {
+    const [selectedAgent, setSelectedAgent] = useState('feedWarmer');
     const [status, setStatus] = useState<AgentStatus>("idle");
     const [logs, setLogs] = useState<string[]>([]);
     const [currentMockIndex, setCurrentMockIndex] = useState(0);
     const [isConnected, setIsConnected] = useState(false);
     const logsEndRef = useRef<HTMLDivElement>(null);
+
+    // Poll for status
+    useEffect(() => {
+        const checkStatus = async () => {
+            try {
+                const res = await fetch('/api/agents/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    const agentState = data.agents[selectedAgent];
+                    if (agentState === 'running') {
+                        setStatus('running');
+                    } else if (status === 'running' && agentState !== 'running') {
+                        // Only switch off if we think we are running but backend says no
+                        setStatus('stopped');
+                    } else if (status === 'idle' && agentState === 'stopped') {
+                        setStatus('idle');
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+        };
+
+        checkStatus();
+        const interval = setInterval(checkStatus, 2000);
+        return () => clearInterval(interval);
+    }, [selectedAgent, status]); // Depend on status too to avoid flickering
 
     // WebSocket Connection
     useEffect(() => {
@@ -31,20 +66,28 @@ export function BrowserStreamView() {
             if (status === "idle" || status === "stopped") return;
 
             // Direct connection to backend (bypass Next.js proxy which causes frame errors)
-            ws = new WebSocket("ws://localhost:4000/ws/stream");
+            const wsUrl = `ws://127.0.0.1:4000/ws/stream`;
+            ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
                 setIsConnected(true);
-                addLog("Connected to agent stream.");
+                addLog(`Connected to ${AGENTS.find(a => a.id === selectedAgent)?.label} stream.`);
             };
 
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
+
+                    // Filter: Only show data for the currently selected agent
+                    // (Backend sends 'agent' field: 'feedWarmer', 'connectionChecker', etc.)
+                    // Maps to: feedWarmer -> feedWarmer, leadCampaign -> leadCampaign, etc.
+                    // Note: 'agent' field in backend matches 'id' in AGENTS list
+                    if (data.agent && data.agent !== selectedAgent) {
+                        return;
+                    }
+
                     if (data.type === "screenshot" && data.image) {
                         setCurrentMockIndex(-1); // Switch to real stream mode
-                        // Update an image ref or state directly for performance
-                        // For simply React state:
                         const img = document.getElementById("live-stream-img") as HTMLImageElement;
                         if (img) img.src = `data:image/jpeg;base64,${data.image}`;
                     } else if (data.type === "log") {
@@ -72,7 +115,7 @@ export function BrowserStreamView() {
             if (ws) ws.close();
             clearTimeout(reconnectTimer);
         };
-    }, [status]);
+    }, [status, selectedAgent]); // Re-connect if agent changes? Ideally yes if status is running.
 
 
     // Keep simulation as fallback if not connected
@@ -96,22 +139,22 @@ export function BrowserStreamView() {
 
     const handleStart = () => {
         setStatus("running");
-        addLog("Agent Started. Initializing browser...");
+        const agentLabel = AGENTS.find(a => a.id === selectedAgent)?.label;
+        addLog(`Starting ${agentLabel}...`);
 
-        fetch('/api/agents/start/feedWarmer', { method: 'POST' })
+        fetch(`/api/agents/start/${selectedAgent}`, { method: 'POST' })
             .then(async (res) => {
                 const data = await res.json();
                 if (res.ok) {
-                    addLog(`Agent launched (PID: ${data.pid})`);
+                    addLog(`${agentLabel} launched (PID: ${data.pid})`);
                 } else if (res.status === 400 && data.message.includes("already running")) {
-                    addLog("Agent is already active. Reconnecting stream...");
+                    addLog(`${agentLabel} is already active.`);
                 } else {
                     throw new Error(data.message || "Failed to start");
                 }
             })
             .catch(err => {
                 addLog(`Error: ${err.message}`);
-                // Optional: setStatus("idle") if we want to force reset, but better to stay in possible running state
             });
     };
 
@@ -183,17 +226,37 @@ export function BrowserStreamView() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Controls */}
                 <div className="md:col-span-2 p-6 rounded-xl border border-slate-800 bg-slate-900/50 backdrop-blur-sm">
-                    <h3 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
-                        <Terminal className="w-5 h-5 text-[#ff3b3b]" />
-                        Command Deck
-                    </h3>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                            <Terminal className="w-5 h-5 text-[#ff3b3b]" />
+                            Command Deck
+                        </h3>
+                        {/* Agent Selector Tabs */}
+                        <div className="flex bg-slate-950/50 p-1 rounded-lg border border-slate-800/50">
+                            {AGENTS.map((agent) => (
+                                <button
+                                    key={agent.id}
+                                    onClick={() => setSelectedAgent(agent.id)}
+                                    className={cn(
+                                        "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                                        selectedAgent === agent.id
+                                            ? "bg-slate-800 text-white shadow-sm"
+                                            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                                    )}
+                                >
+                                    {agent.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className="flex flex-wrap gap-3">
                         <button
                             onClick={handleStart}
                             disabled={status === "running"}
                             className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
-                            <Play className="w-4 h-4" /> Start Feed Warmer
+                            <Play className="w-4 h-4" /> Start {AGENTS.find(a => a.id === selectedAgent)?.label}
                         </button>
                         <button
                             onClick={handlePause}

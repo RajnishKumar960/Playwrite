@@ -12,6 +12,7 @@ import threading
 import sqlite3
 import json
 import os
+import random
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000", "http://localhost:3001"])
@@ -31,7 +32,7 @@ stream_clients = []
 LOGS_DIR = Path('logs')
 LOGS_DIR.mkdir(exist_ok=True)
 
-DB_PATH = 'leads.db'
+DB_PATH = 'lead_engagement.db'
 
 def add_log(agent: str, message: str, log_type: str = 'info'):
     """Add a log entry."""
@@ -363,29 +364,28 @@ def get_lead_stats():
         if stats["connectionsSent"] > 0:
             stats["conversionRate"] = round((stats["connected"] / stats["connectionsSent"]) * 100, 1)
             
-        # 2. Activity / Pain Points (Simulated from actual comments if available, or mock for demo)
+        # 2. Activity / Pain Points (Real AI Data)
         cursor.execute("""
-            SELECT action_type, comment_text, timestamp, lead_id 
+            SELECT action, comment_text, created_at as timestamp, lead_id 
             FROM engagements 
-            ORDER BY timestamp DESC LIMIT 20
+            ORDER BY created_at DESC LIMIT 20
         """)
         engagements = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute("""
+            SELECT pain_point, sum(count) as total 
+            FROM pain_points 
+            GROUP BY pain_point 
+            ORDER BY total DESC 
+            LIMIT 5
+        """)
+        real_pain_points = [{"name": row[0], "value": row[1]} for row in cursor.fetchall()]
         
-        # Process "Real" Pain Points from comments (simple keyword extraction)
-        keywords = {}
-        for eng in engagements:
-            text = (eng['comment_text'] or "").lower()
-            for key in ['hiring', 'budget', 'scale', 'automation', 'efficiency', 'growth', 'leads']:
-                if key in text:
-                    keywords[key] = keywords.get(key, 0) + 1
-        
-        # Transform to list
-        sorted_pain = sorted(keywords.items(), key=lambda x: x[1], reverse=True)
-        # If no real data, use "AI" predicted ones from industry
-        if not sorted_pain:
-             sorted_pain = [('scaling', 15), ('automation', 12), ('hiring costs', 8), ('lead quality', 6)]
+        # Fallback only if database is empty
+        if not real_pain_points:
+             real_pain_points = [{"name": "Pending AI Analysis", "value": 0}]
              
-        stats['painPoints'] = [{"name": k.title(), "value": v} for k, v in sorted_pain[:5]]
+        stats['painPoints'] = real_pain_points
         
         # 3. Recent Activity Feed
         activity_feed = []
@@ -400,12 +400,64 @@ def get_lead_stats():
             activity_feed.append({
                 "id": f"{eng['timestamp']}-{eng['lead_id']}",
                 "user": lead_name,
-                "action": f"{eng['action_type'].replace('_', ' ').title()}",
+                "action": f"{eng['action'].replace('_', ' ').title()}",
                 "target": "Post regarding tech trends", # Mock context if not stored
                 "time": eng['timestamp'],
-                "icon": "message" if "comment" in eng['action_type'] else "thumbs-up"
+                "icon": "message" if "comment" in eng['action'] else "thumbs-up"
             })
         stats['recentActivity'] = activity_feed
+
+        # 4. Funnel Data (Calculated)
+        stats['funnel'] = [
+            {"name": "Leads", "value": stats['totalLeads'], "fill": "#3b82f6"},      # Blue
+            {"name": "Requests", "value": stats['connectionsSent'], "fill": "#8b5cf6"}, # Violet
+            {"name": "Connected", "value": stats['connected'], "fill": "#10b981"},    # Emerald
+            {"name": "Replies", "value": stats['replied'], "fill": "#f43f5e"}         # Rose
+        ]
+
+        # 5. Outreach Velocity (Real Historical Data)
+        # Query engagements grouped by day for the last 7 days
+        velocity_data = []
+        
+        cursor.execute("""
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as daily_engagements
+            FROM engagements 
+            WHERE created_at >= DATE('now', '-7 days')
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        """)
+        engagement_by_day = {row[0]: row[1] for row in cursor.fetchall()}
+        
+        # For "requests sent", we can track by lead creation or engagement actions
+        # For "accepted", we track by connection status changes (if logged) or just current connected count
+        # Since we don't have perfect time-series data yet, we'll use a hybrid approach:
+        # - Engagements per day (actual)
+        # - Connections: Estimate distribution or use cumulative
+        
+        import datetime
+        today = datetime.date.today()
+        
+        for i in range(6, -1, -1):
+            date = today - datetime.timedelta(days=i)
+            date_str = date.strftime("%Y-%m-%d")
+            day_name = date.strftime("%a")
+            
+            # Get actual engagement count for that day
+            daily_sent = engagement_by_day.get(date_str, 0)
+            
+            # For accepted, we estimate based on conversion rate
+            # In a real system, you'd track connection_accepted_at timestamps
+            daily_accepted = int(daily_sent * (stats['conversionRate'] / 100)) if stats['conversionRate'] > 0 else 0
+            
+            velocity_data.append({
+                "name": day_name,
+                "sent": daily_sent,
+                "accepted": daily_accepted
+            })
+        
+        stats['outreachVelocity'] = velocity_data
 
         conn.close()
         return jsonify(stats)
@@ -427,6 +479,10 @@ def start_connection_checker():
 @app.route('/api/agents/start/allAgents', methods=['POST'])
 def start_all_agents():
     return start_agent('allAgents', 'run_all_agents.py', ['--duration', '15', '--stream'])
+
+@app.route('/api/agents/start/engagementAgent', methods=['POST'])
+def start_engagement_agent():
+    return start_agent('engagementAgent', 'engagement_agent.py', ['--max', '20', '--stream'])
 
 @app.route('/api/analytics/report', methods=['GET'])
 def get_analytics_report():

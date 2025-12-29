@@ -18,10 +18,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={cn(inter.className, "bg-slate-50 text-slate-900 overflow-hidden")}>
-        <div className="flex h-screen w-full">
+      <body className={cn(inter.className, "bg-black text-slate-100 overflow-hidden")}>
+        {/* Cosmic Background */}
+        <div className="cosmic-bg">
+          <div className="orb orb-1" />
+          <div className="orb orb-2" />
+          <div className="orb orb-3" />
+          <div className="mesh-grid" />
+        </div>
+
+        <div className="flex h-screen w-full relative z-10 font-sans">
           <Sidebar />
-          <main className="flex-1 overflow-y-auto bg-slate-50/50">
+          <main className="flex-1 overflow-y-auto scrollbar-thin">
             {children}
           </main>
         </div>

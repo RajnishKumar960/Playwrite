@@ -11,9 +11,11 @@ import {
     Clock,
     XCircle,
     BrainCircuit,
-    Loader2
+    Loader2,
+    User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 interface Lead {
     id: number;
@@ -53,65 +55,91 @@ export default function LeadsPage() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8"
+            >
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Lead Intelligence</h1>
-                    <p className="text-slate-500 mt-2">Manage and analyze your prospective leads.</p>
+                    <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-white to-slate-400 tracking-tight">Lead Intelligence</h1>
+                    <p className="text-slate-400 mt-2 font-light">Manage and analyze your prospective leads.</p>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={fetchLeads} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 shadow-sm">
+                    <button onClick={fetchLeads} className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all backdrop-blur-sm">
                         <Filter className="w-4 h-4" /> Refresh
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-[#ff3b3b] text-white rounded-lg text-sm font-medium hover:bg-[#e63535] shadow-sm shadow-red-200">
+                    <button className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-rose-500 to-red-600 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-rose-500/30 transition-all border border-rose-400/20">
                         <FileText className="w-4 h-4" /> Export Report
                     </button>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Search Bar */}
-            <div className="relative mb-6">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="relative mb-6"
+            >
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                     type="text"
                     placeholder="Search leads by name, company, or insight..."
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#ff3b3b]/20 focus:border-[#ff3b3b]"
+                    className="w-full pl-12 pr-4 py-4 rounded-2xl border border-white/10 bg-black/20 text-slate-100 placeholder:text-slate-500 shadow-inner backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent transition-all"
                 />
-            </div>
+            </motion.div>
 
             {/* Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="glass-card rounded-2xl overflow-hidden min-h-[400px] border border-white/10"
+            >
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                        <Loader2 className="w-10 h-10 animate-spin mb-4" />
+                    <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+                        <Loader2 className="w-10 h-10 animate-spin mb-4 text-cyan-400" />
                         <p>Loading Leads...</p>
                     </div>
                 ) : leads.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                    <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+                        <User className="w-12 h-12 mb-3 opacity-20" />
                         <p>No leads found. Start a campaign to add data.</p>
                     </div>
                 ) : (
                     <>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm">
-                                <thead className="bg-slate-50 border-b border-slate-200">
+                                <thead className="bg-white/5 border-b border-white/10">
                                     <tr>
-                                        <th className="px-6 py-4 font-semibold text-slate-700">Lead Name</th>
-                                        <th className="px-6 py-4 font-semibold text-slate-700">Role & Company</th>
-                                        <th className="px-6 py-4 font-semibold text-slate-700">Status</th>
-                                        <th className="px-6 py-4 font-semibold text-slate-700">Connection</th>
-                                        <th className="px-6 py-4 font-semibold text-slate-700 text-right">Actions</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-300">Lead Name</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-300">Role & Company</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-300">Status</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-300">Connection</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-300 text-right">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {leads.map((lead) => (
-                                        <tr key={lead.id} className="hover:bg-slate-50 transition-colors cursor-pointer group">
-                                            <td className="px-6 py-4 font-medium text-slate-900">
-                                                {lead.name}
+                                <tbody className="divide-y divide-white/5">
+                                    {leads.map((lead, i) => (
+                                        <motion.tr
+                                            key={lead.id}
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: i * 0.05 }}
+                                            className="hover:bg-white/5 transition-colors cursor-pointer group"
+                                        >
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-slate-700 to-slate-600 flex items-center justify-center text-xs font-bold text-white border border-white/10">
+                                                        {lead.name.charAt(0)}
+                                                    </div>
+                                                    <span className="font-medium text-slate-200 group-hover:text-white transition-colors">{lead.name}</span>
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4 text-slate-600">
+                                            <td className="px-6 py-4 text-slate-400">
                                                 <div className="flex flex-col">
-                                                    <span>{lead.title || "N/A"}</span>
-                                                    <span className="text-xs text-slate-400">{lead.company}</span>
+                                                    <span className="text-slate-300">{lead.title || "N/A"}</span>
+                                                    <span className="text-xs text-slate-500">{lead.company}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
@@ -121,40 +149,40 @@ export default function LeadsPage() {
                                                 <ConnectionBadge status={lead.connection_status} />
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button className="p-2 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                                                <button className="p-2 hover:bg-white/10 rounded-full text-slate-500 hover:text-white transition-colors">
                                                     <MoreVertical className="w-4 h-4" />
                                                 </button>
                                             </td>
-                                        </tr>
+                                        </motion.tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-                        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+                        <div className="px-6 py-4 border-t border-white/10 bg-white/5 flex items-center justify-between text-xs text-slate-500">
                             <span>Showing {leads.length} of {total} leads</span>
                             <div className="flex gap-2">
-                                <button className="px-3 py-1 bg-white border border-slate-200 rounded hover:bg-slate-100 disabled:opacity-50">Previous</button>
-                                <button className="px-3 py-1 bg-white border border-slate-200 rounded hover:bg-slate-100">Next</button>
+                                <button className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 text-slate-300 disabled:opacity-50 transition-colors">Previous</button>
+                                <button className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 text-slate-300 transition-colors">Next</button>
                             </div>
                         </div>
                     </>
                 )}
-            </div>
+            </motion.div>
         </div>
     );
 }
 
 function StatusBadge({ status }: { status: string }) {
     const styles: Record<string, string> = {
-        engaged: "bg-blue-100 text-blue-700 border-blue-200",
-        qualified: "bg-green-100 text-green-700 border-green-200",
-        converted: "bg-purple-100 text-purple-700 border-purple-200",
-        new: "bg-slate-100 text-slate-700 border-slate-200",
+        engaged: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+        qualified: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+        converted: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+        new: "bg-slate-500/20 text-slate-300 border-slate-500/30",
     };
 
     return (
         <span className={cn(
-            "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize",
+            "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize shadow-[0_0_10px_rgba(0,0,0,0.1)]",
             styles[status.toLowerCase()] || styles.new
         )}>
             {status}
@@ -163,18 +191,18 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function ConnectionBadge({ status }: { status?: string }) {
-    if (!status) return <span className="text-slate-400">-</span>;
+    if (!status) return <span className="text-slate-600">-</span>;
 
     const styles: Record<string, string> = {
-        accepted: "text-green-600",
-        connected: "text-green-600",
-        pending: "text-amber-600",
-        sent: "text-blue-600",
+        accepted: "text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]",
+        connected: "text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]",
+        pending: "text-amber-400",
+        sent: "text-blue-400",
     };
 
     return (
-        <div className={cn("flex items-center gap-1 text-xs font-medium capitalize", styles[status.toLowerCase()] || "text-slate-500")}>
-            {status === 'accepted' || status === 'connected' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+        <div className={cn("flex items-center gap-1.5 text-xs font-medium capitalize", styles[status.toLowerCase()] || "text-slate-500")}>
+            {status === 'accepted' || status === 'connected' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
             {status}
         </div>
     )
