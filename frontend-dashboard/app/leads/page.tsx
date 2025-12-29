@@ -1,199 +1,130 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { useState } from "react";
 import {
-    MoreVertical, Search, Filter, Plus,
-    MessageSquare, Phone, Linkedin, Mail, Calendar,
-    AlertCircle, ChevronDown
+    Table,
+    Search,
+    Filter,
+    MoreVertical,
+    FileText,
+    CheckCircle2,
+    Clock,
+    XCircle
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// Kanban Columns
-const COLUMNS = {
-    new: { id: "new", title: "New Leads", color: "border-blue-500" },
-    contacted: { id: "contacted", title: "Contacted", color: "border-purple-500" },
-    connected: { id: "connected", title: "Connected", color: "border-amber-500" },
-    replied: { id: "replied", title: "Replied", color: "border-pink-500" },
-    interested: { id: "interested", title: "Interested", color: "border-green-500" },
-};
+// Mock Data for Leads
+const MOCK_LEADS = [
+    { id: 1, name: "Sarah Johnson", title: "VP of Sales", company: "TechCorp Inc.", status: "connected", insight: "Interests align with AI automation strategies focused on..." },
+    { id: 2, name: "Michael Chen", title: "Director of Marketing", company: "GrowthFlow", status: "pending", insight: "Recently posted about scaling outreach challenges..." },
+    { id: 3, name: "Jessica Williams", title: "Head of RevOps", company: "ScaleUp Systems", status: "contacted", insight: "Commented on industry report regarding CRM inefficiencies..." },
+    { id: 4, name: "David Miller", title: "Chief Revenue Officer", company: "Enterprise Dynamics", status: "failed", insight: "Profile indicates strict no-solicitation policy..." },
+    { id: 5, name: "Emily Davis", title: "Sales Development Mgr", company: "CloudNative", status: "connected", insight: "Looking for tools to optimize SDR workflow..." },
+];
 
 export default function LeadsPage() {
-    const [columns, setColumns] = useState<any>(COLUMNS);
-    const [leads, setLeads] = useState<any>({
-        new: [], contacted: [], connected: [], replied: [], interested: []
-    });
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        fetchLeads();
-    }, []);
-
-    const fetchLeads = async () => {
-        try {
-            const res = await fetch("http://localhost:5000/api/leads/kanban");
-            const data = await res.json();
-            if (data.columns) {
-                setLeads(data.columns);
-            }
-        } catch (error) {
-            console.error("Failed to fetch leads", error);
-            // Fallback Mock Data with "Pain Points" analysis
-            setLeads({
-                new: [
-                    { id: "101", name: "Alice Freeman", company: "TechFlow", title: "CTO", status: "new", score: 85, painPoints: ["Scaling Issue", "Hiring"] },
-                    { id: "102", name: "Bob Smith", company: "StartUp Inc", title: "Founder", status: "new", score: 72, painPoints: ["Cost Reduction"] }
-                ],
-                contacted: [
-                    { id: "103", name: "Charlie Davis", company: "GrowthCo", title: "VP Sales", status: "contacted", score: 60, painPoints: [] }
-                ],
-                connected: [
-                    { id: "104", name: "Diana Prince", company: "Global Corp", title: "Director", status: "connected", score: 90, painPoints: ["Automation"] }
-                ],
-                replied: [
-                    { id: "105", name: "Evan Wright", company: "NextLevel", title: "CEO", status: "replied", score: 95, painPoints: ["Lead Gen", "Integration"] }
-                ],
-                interested: []
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const onDragEnd = (result: any) => {
-        const { source, destination } = result;
-        if (!destination) return;
-
-        if (source.droppableId === destination.droppableId && source.index === destination.index) return;
-
-        // Move logic
-        const sourceCol = [...leads[source.droppableId]];
-        const destCol = [...leads[destination.droppableId]];
-        const [removed] = sourceCol.splice(source.index, 1);
-
-        // Optimistic Update
-        removed.status = destination.droppableId;
-        destCol.splice(destination.index, 0, removed);
-
-        setLeads({
-            ...leads,
-            [source.droppableId]: sourceCol,
-            [destination.droppableId]: destCol
-        });
-
-        // Notify Backend (Fire & Forget)
-        fetch("http://localhost:5000/api/leads/kanban", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                leadId: removed.id,
-                status: destination.droppableId,
-                column: destination.droppableId
-            })
-        }).catch(err => console.error("Move failed", err));
-    };
-
     return (
-        <div className="h-[calc(100vh-2rem)] flex flex-col p-6 space-y-6 overflow-hidden">
-            {/* Header */}
-            <div className="flex justify-between items-center shrink-0">
+        <div className="p-8 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-purple-400 to-pink-400">
-                        Leads CRM
-                    </h1>
-                    <p className="text-gray-400 mt-1">Kanban board for lead tracking and engagement.</p>
+                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Lead Intelligence</h1>
+                    <p className="text-slate-500 mt-2">Manage and analyze your prospective leads.</p>
                 </div>
-
-                <div className="flex gap-3">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
-                        <input
-                            type="text"
-                            placeholder="Search leads..."
-                            className="bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-500 w-64"
-                        />
-                    </div>
-                    <button className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-lg shadow-purple-900/20 transition-all font-medium">
-                        <Plus size={18} /> Add Lead
+                <div className="flex gap-2">
+                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 shadow-sm">
+                        <Filter className="w-4 h-4" /> Filter
+                    </button>
+                    <button className="flex items-center gap-2 px-4 py-2 bg-[#ff3b3b] text-white rounded-lg text-sm font-medium hover:bg-[#e63535] shadow-sm shadow-red-200">
+                        <FileText className="w-4 h-4" /> Export Report
                     </button>
                 </div>
             </div>
 
-            {/* Kanban Board */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
-                <DragDropContext onDragEnd={onDragEnd}>
-                    <div className="flex gap-6 h-full min-w-[1200px]">
-                        {Object.values(COLUMNS).map((col: any) => (
-                            <div key={col.id} className="w-80 flex flex-col h-full rounded-2xl glass-card border border-white/5 bg-[#0f172a]/40">
-                                {/* Column Header */}
-                                <div className={`p-4 border-b border-white/5 flex justify-between items-center ${col.id === 'new' ? 'bg-blue-500/5' : col.id === 'replied' ? 'bg-pink-500/5' : ''}`}>
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-3 h-3 rounded-full ${col.id === 'new' ? 'bg-blue-500' : col.id === 'replied' ? 'bg-pink-500' : 'bg-gray-500'}`} />
-                                        <h3 className="font-bold text-gray-200">{col.title}</h3>
-                                        <span className="text-xs text-gray-500 px-2 py-0.5 bg-white/5 rounded-full">
-                                            {leads[col.id]?.length || 0}
-                                        </span>
-                                    </div>
-                                    <MoreVertical size={16} className="text-gray-500 cursor-pointer hover:text-white" />
-                                </div>
+            {/* Search Bar */}
+            <div className="relative mb-6">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                    type="text"
+                    placeholder="Search leads by name, company, or insight..."
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#ff3b3b]/20 focus:border-[#ff3b3b]"
+                />
+            </div>
 
-                                {/* Droppable Area */}
-                                <Droppable droppableId={col.id}>
-                                    {(provided) => (
-                                        <div
-                                            {...provided.droppableProps}
-                                            ref={provided.innerRef}
-                                            className="flex-1 p-3 overflow-y-auto scrollbar-thin space-y-3"
-                                        >
-                                            {leads[col.id]?.map((lead: any, index: number) => (
-                                                <Draggable key={lead.id.toString()} draggableId={lead.id.toString()} index={index}>
-                                                    {(provided, snapshot) => (
-                                                        <div
-                                                            ref={provided.innerRef}
-                                                            {...provided.draggableProps}
-                                                            {...provided.dragHandleProps}
-                                                            className={`p-4 rounded-xl border transition-all group relative overflow-hidden ${snapshot.isDragging
-                                                                    ? 'bg-purple-900/40 border-purple-500 shadow-2xl rotate-2 scale-105 z-50'
-                                                                    : 'bg-white/5 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                                                }`}
-                                                        >
-                                                            {/* Pain Points Tags */}
-                                                            {lead.painPoints && lead.painPoints.length > 0 && (
-                                                                <div className="flex flex-wrap gap-1 mb-2">
-                                                                    {lead.painPoints.map((pp: string) => (
-                                                                        <span key={pp} className="text-[10px] px-1.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded">
-                                                                            {pp}
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-
-                                                            <div className="flex justify-between items-start mb-2">
-                                                                <h4 className="font-bold text-gray-200 text-sm group-hover:text-purple-300 transition-colors">{lead.name}</h4>
-                                                                {lead.score > 80 && <AlertCircle size={14} className="text-amber-400" />}
-                                                            </div>
-                                                            <p className="text-xs text-gray-400 mb-0.5">{lead.title}</p>
-                                                            <p className="text-xs text-purple-400 font-medium mb-3">{lead.company}</p>
-
-                                                            <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                                                                <div className="flex gap-2">
-                                                                    <button className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-blue-400 transition-colors"><Linkedin size={14} /></button>
-                                                                    <button className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-green-400 transition-colors"><Mail size={14} /></button>
-                                                                </div>
-                                                                <div className="text-[10px] text-gray-600 font-mono">2d ago</div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </Draggable>
-                                            ))}
-                                            {provided.placeholder}
+            {/* Table */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="px-6 py-4 font-semibold text-slate-700">Lead Name</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700">Role & Company</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700">Status</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700">AI Insight</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {MOCK_LEADS.map((lead) => (
+                                <tr key={lead.id} className="hover:bg-slate-50 transition-colors cursor-pointer group">
+                                    <td className="px-6 py-4 font-medium text-slate-900">{lead.name}</td>
+                                    <td className="px-6 py-4 text-slate-600">
+                                        <div className="flex flex-col">
+                                            <span>{lead.title}</span>
+                                            <span className="text-xs text-slate-400">{lead.company}</span>
                                         </div>
-                                    )}
-                                </Droppable>
-                            </div>
-                        ))}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <StatusBadge status={lead.status} />
+                                    </td>
+                                    <td className="px-6 py-4 max-w-md">
+                                        <p className="truncate text-slate-500">{lead.insight}</p>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <button className="p-2 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                                            <MoreVertical className="w-4 h-4" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+                    <span>Showing 5 of 124 leads</span>
+                    <div className="flex gap-2">
+                        <button className="px-3 py-1 bg-white border border-slate-200 rounded hover:bg-slate-100 disabled:opacity-50">Previous</button>
+                        <button className="px-3 py-1 bg-white border border-slate-200 rounded hover:bg-slate-100">Next</button>
                     </div>
-                </DragDropContext>
+                </div>
             </div>
         </div>
+    );
+}
+
+function StatusBadge({ status }: { status: string }) {
+    const styles = {
+        connected: "bg-green-100 text-green-700 border-green-200",
+        pending: "bg-amber-100 text-amber-700 border-amber-200",
+        contacted: "bg-blue-100 text-blue-700 border-blue-200",
+        failed: "bg-red-100 text-red-700 border-red-200",
+    };
+
+    const icons = {
+        connected: CheckCircle2,
+        pending: Clock,
+        contacted: FileText,
+        failed: XCircle,
+    };
+
+    const Icon = icons[status as keyof typeof icons] || Clock;
+
+    return (
+        <span className={cn(
+            "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border",
+            styles[status as keyof typeof styles] || "bg-slate-100 text-slate-700 border-slate-200"
+        )}>
+            <Icon className="w-3 h-3" />
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+        </span>
     );
 }

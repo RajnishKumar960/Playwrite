@@ -538,4 +538,4 @@ if __name__ == '__main__':
     print("  Stream WS: ws://localhost:4000/ws/stream")
     print("=" * 60 + "\n")
     
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=4000)
