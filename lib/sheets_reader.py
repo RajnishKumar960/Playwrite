@@ -32,10 +32,14 @@ def _get_sheets_client():
     if not SHEETS_AVAILABLE:
         raise RuntimeError("gspread/google-auth not installed. Run: pip install gspread google-auth")
     
-    sa_path = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE")
-    if not sa_path or not os.path.exists(sa_path):
+    # Import the helper module
+    from lib.google_auth_helper import get_service_account_path
+    
+    sa_path = get_service_account_path()
+    if not sa_path:
         raise RuntimeError(
-            "Set GOOGLE_SERVICE_ACCOUNT_FILE env var to your service account JSON file path."
+            "Set GOOGLE_SERVICE_ACCOUNT_FILE env var to your service account JSON file path "
+            "or GOOGLE_SERVICE_ACCOUNT_JSON env var to the JSON content as a string."
         )
     
     scope = [
