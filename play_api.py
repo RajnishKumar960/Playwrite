@@ -27,7 +27,7 @@ app = Flask(__name__)
 DAILY_MAX_REQUESTS = int(os.getenv("DAILY_MAX_REQUESTS", "30"))
 
 
-from paired_agent import run_campaign_logic
+# from paired_agent import run_campaign_logic  # Function doesn't exist, commenting out for deployment
 from lib.openai_comments import generate_openai_comment as make_comment_text
 from lib.auth import login
 
@@ -331,8 +331,9 @@ def warmup():
             
             if not profiles:
                  # Run feed mode using robust logic
-                 acted_count = run_campaign_logic(page, max_actions, comment_preview, dry_run=False, safe_mode=True)
-                 results.append({"mode": "feed", "acted": acted_count})
+                 # acted_count = run_campaign_logic(page, max_actions, comment_preview, dry_run=False, safe_mode=True)
+                 # results.append({"mode": "feed", "acted": acted_count})
+                 results.append({"mode": "feed", "status": "warmup endpoint temporarily disabled - use specific agents instead"})
             else:
                 # Run profile lists logic (custom here)
                 # We can reuse the loop we had but wrap it safely
