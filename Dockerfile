@@ -11,9 +11,8 @@ COPY requirements.txt .
 # Install python dependencies (gunicorn, flask, etc.)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install browsers (if not included in base, but 1.49-jammy usually has them or we ensure)
-# Running this ensures we have the browsers matching the playwright version
-RUN playwright install chromium
+# The base image already includes Playwright and browsers
+# No additional browser installation needed
 
 # Copy the rest of the application
 COPY . .
