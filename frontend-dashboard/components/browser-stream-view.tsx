@@ -65,8 +65,11 @@ export function BrowserStreamView() {
         const connect = () => {
             if (status === "idle" || status === "stopped") return;
 
-            // Direct connection to backend (bypass Next.js proxy which causes frame errors)
-            const wsUrl = `ws://127.0.0.1:4000/ws/stream`;
+            // Dynamic WebSocket URL based on backend configuration
+            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+            const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
+            const wsHost = backendUrl.replace(/^https?:\/\//, '');
+            const wsUrl = `${wsProtocol}://${wsHost}/ws/stream`;
             ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
