@@ -1,6 +1,9 @@
 # Flask API Server
 flask==3.1.0
 gunicorn==21.2.0
+flask-cors==5.0.0
+flask-sock==0.7.0
+eventlet==0.37.0
 # werkzeug will be auto-installed by flask with compatible version
 
 # Environment & Configuration
