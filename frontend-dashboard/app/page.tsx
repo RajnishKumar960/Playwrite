@@ -32,7 +32,8 @@ import {
     Radar,
     LineChart,
     Line,
-    Legend
+    Legend,
+    Cell
 } from 'recharts';
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -200,8 +201,8 @@ export default function DashboardPage() {
                                         itemStyle={{ fontSize: '12px' }}
                                     />
                                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                    <Area type="monotone" name="Requests Sent" dataKey="sent" stroke="#8b5cf6" strokeWidth={3} fillUrl="#colorSent" />
-                                    <Area type="monotone" name="Accepted" dataKey="accepted" stroke="#10b981" strokeWidth={3} fillUrl="#colorAccepted" />
+                                    <Area type="monotone" name="Requests Sent" dataKey="sent" stroke="#8b5cf6" strokeWidth={3} fill="url(#colorSent)" />
+                                    <Area type="monotone" name="Accepted" dataKey="accepted" stroke="#10b981" strokeWidth={3} fill="url(#colorAccepted)" />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
@@ -230,7 +231,7 @@ export default function DashboardPage() {
                                             Since we passed 'fill' in data, let's map it. 
                                         */}
                                         {stats.funnel.map((entry, index) => (
-                                            <cell key={`cell-${index}`} fill={entry.fill} />
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
                                         ))}
                                     </Bar>
                                 </BarChart>
