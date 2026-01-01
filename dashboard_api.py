@@ -13,6 +13,8 @@ import sqlite3
 import json
 import os
 import random
+import asyncio
+from lib.linkedin_auth import get_auth_instance
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000", "http://localhost:3001"])
@@ -625,6 +627,91 @@ def logs_socket(ws):
             ws.receive()  # Keep alive
     except:
         pass
+
+# LinkedIn Authentication Routes
+@app.route('/api/auth/linkedin/login', methods=['POST'])
+def linkedin_login():
+    """Start LinkedIn login process"""
+    try:
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not email or not password:
+            return jsonify({'status': 'error', 'message': 'Email and password required'}), 400
+        
+        # Run async function
+        auth = get_auth_instance()
+        result = asyncio.run(auth.start_login(email, password))
+        
+        if result['status'] == 'error':
+            return jsonify(result), 401
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/auth/linkedin/verify-otp', methods=['POST'])
+def linkedin_verify_otp():
+    """Verify OTP code or check mobile approval"""
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        otp_code = data.get('otp_code')  # Optional
+        
+        if not session_id:
+            return jsonify({'status': 'error', 'message': 'Session ID required'}), 400
+        
+        # Run async function
+        auth = get_auth_instance()
+        result = asyncio.run(auth.verify_otp(session_id, otp_code))
+        
+        if result['status'] == 'error':
+            return jsonify(result), 401
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/auth/linkedin/status', methods=['GET'])
+def linkedin_status():
+    """Check LinkedIn authentication status"""
+    try:
+        # Check if session file exists
+        email = request.args.get('email')
+        if not email:
+            return jsonify({'logged_in': False}), 200
+        
+        import os.path
+        session_file = f'sessions/{email.replace("@", "_")}.json'
+        
+        if os.path.exists(session_file):
+            with open(session_file, 'r') as f:
+                import json
+                data = json.load(f)
+                
+            # Check if expired
+            from datetime import datetime
+            expires_at = datetime.fromisoformat(data['expires_at'])
+            if datetime.now() > expires_at:
+                os.remove(session_file)
+                return jsonify({'logged_in': False}), 200
+            
+            return jsonify({
+                'logged_in': True,
+                'user': {
+                    'email': email,
+                    'name': data.get('user_name', 'LinkedIn User')
+                }
+            }), 200
+        
+        return jsonify({'logged_in': False}), 200
+        
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 if __name__ == '__main__':
     print("\n" + "=" * 60)
