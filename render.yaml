@@ -5,6 +5,7 @@ services:
   - type: web
     name: tsi-linkedin-automation
     runtime: docker
+    branch: ishans-dashboard  # Deploy from this branch, not main
     dockerfilePath: ./Dockerfile
     region: oregon
     plan: starter  # $7/month - required for persistent disk
