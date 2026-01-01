@@ -640,9 +640,23 @@ def linkedin_login():
         if not email or not password:
             return jsonify({'status': 'error', 'message': 'Email and password required'}), 400
         
-        # Run async function
-        auth = get_auth_instance()
-        result = asyncio.run(auth.start_login(email, password))
+        # Run async function in a separate thread with its own event loop
+        import concurrent.futures
+        import asyncio
+        
+        def run_async_login():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                auth = get_auth_instance()
+                result = loop.run_until_complete(auth.start_login(email, password))
+                return result
+            finally:
+                loop.close()
+        
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(run_async_login)
+            result = future.result(timeout=60)  # 60 second timeout
         
         if result['status'] == 'error':
             return jsonify(result), 401
@@ -663,9 +677,23 @@ def linkedin_verify_otp():
         if not session_id:
             return jsonify({'status': 'error', 'message': 'Session ID required'}), 400
         
-        # Run async function
-        auth = get_auth_instance()
-        result = asyncio.run(auth.verify_otp(session_id, otp_code))
+        # Run async function in a separate thread
+        import concurrent.futures
+        import asyncio
+        
+        def run_async_verify():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                auth = get_auth_instance()
+                result = loop.run_until_complete(auth.verify_otp(session_id, otp_code))
+                return result
+            finally:
+                loop.close()
+        
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(run_async_verify)
+            result = future.result(timeout=60)
         
         if result['status'] == 'error':
             return jsonify(result), 401
