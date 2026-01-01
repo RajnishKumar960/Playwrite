@@ -1,136 +1,286 @@
 "use client";
 
-import React from 'react';
-import { User, Bell, Key, Globe, LogOut, Code, Database, ChevronRight } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { Lock, LogOut, CheckCircle, Loader2, AlertCircle, LinkedinIcon } from 'lucide-react';
 
-export default function SettingsPage() {
-    return (
-        <div className="min-h-screen p-6 space-y-6 max-w-5xl mx-auto">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-gray-200 to-gray-400">
-                    Settings
-                </h1>
-                <p className="text-gray-400 mt-1">Manage your account preferences and integrations.</p>
-            </div>
-
-            {/* Profile Card */}
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                className="glass-card p-6 rounded-xl border border-white/5 flex items-center gap-6"
-            >
-                <div className="w-20 h-20 rounded-full bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white shadow-xl ring-4 ring-black/20">
-                    JS
-                </div>
-                <div className="flex-1">
-                    <h2 className="text-xl font-bold text-gray-100">John Smith</h2>
-                    <p className="text-gray-400">john.smith@example.com</p>
-                    <div className="flex gap-2 mt-3">
-                        <span className="px-2 py-0.5 rounded text-xs bg-purple-500/10 text-purple-400 border border-purple-500/20">Pro Plan</span>
-                        <span className="px-2 py-0.5 rounded text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20">Administrator</span>
-                    </div>
-                </div>
-                <button className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-gray-300 transition-colors border border-white/10">
-                    Edit Profile
-                </button>
-            </motion.div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Settings Sidebar */}
-                <div className="space-y-2">
-                    {[
-                        { icon: User, label: 'Account', active: true },
-                        { icon: Bell, label: 'Notifications', active: false },
-                        { icon: Key, label: 'API Keys', active: false },
-                        { icon: Globe, label: 'Integrations', active: false },
-                        { icon: Database, label: 'Data & Export', active: false },
-                    ].map((item) => (
-                        <button
-                            key={item.label}
-                            className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition-colors ${item.active
-                                    ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20'
-                                    : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
-                                }`}
-                        >
-                            <item.icon size={18} />
-                            <span className="font-medium">{item.label}</span>
-                        </button>
-                    ))}
-
-                    <div className="pt-6">
-                        <button className="w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 text-red-400 hover:bg-red-500/10 border border-transparent transition-colors">
-                            <LogOut size={18} />
-                            <span className="font-medium">Sign Out</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Main Content Area */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* Integration Section */}
-                    <motion.div
-                        initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
-                        className="glass-card p-6 rounded-xl border border-white/5"
-                    >
-                        <h3 className="text-lg font-bold text-gray-100 mb-4 flex items-center gap-2">
-                            <Globe size={18} className="text-blue-400" /> Connected Services
-                        </h3>
-
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/5">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded bg-[#0077b5] flex items-center justify-center text-white font-bold">in</div>
-                                    <div>
-                                        <h4 className="font-medium text-gray-200">LinkedIn Account</h4>
-                                        <p className="text-xs text-green-400">Connected • Last sync 5m ago</p>
-                                    </div>
-                                </div>
-                                <button className="text-xs bg-white/5 px-3 py-1.5 rounded-lg text-gray-300 hover:bg-white/10">Configure</button>
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/5 opacity-75">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded bg-[#E4405F] flex items-center justify-center text-white font-bold">Ig</div>
-                                    <div>
-                                        <h4 className="font-medium text-gray-200">Instagram</h4>
-                                        <p className="text-xs text-gray-500">Not Connected</p>
-                                    </div>
-                                </div>
-                                <button className="text-xs bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg text-white">Connect</button>
-                            </div>
-                        </div>
-                    </motion.div>
-
-                    {/* API Section */}
-                    <motion.div
-                        initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-                        className="glass-card p-6 rounded-xl border border-white/5"
-                    >
-                        <h3 className="text-lg font-bold text-gray-100 mb-4 flex items-center gap-2">
-                            <Code size={18} className="text-purple-400" /> Developer Settings
-                        </h3>
-
-                        <div className="p-4 rounded-lg bg-black/30 border border-white/10 font-mono text-sm">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-gray-500">Public API Key</span>
-                                <span className="text-xs text-blue-400 cursor-pointer hover:underline">Regenerate</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-gray-300">
-                                pk_live_51Mz...q3x9 <CopyButton />
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            </div>
-        </div>
-    );
+interface LinkedInAuth {
+    logged_in: boolean;
+    user?: {
+        name: string;
+        email: string;
+    };
 }
 
-function CopyButton() {
+export default function SettingsPage() {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [authStatus, setAuthStatus] = useState<LinkedInAuth>({ logged_in: false });
+    const [showOTPModal, setShowOTPModal] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [sessionId, setSessionId] = useState('');
+
+    // Check LinkedIn auth status on mount
+    useEffect(() => {
+        const storedEmail = localStorage.getItem('linkedin_email');
+        if (storedEmail) {
+            checkAuthStatus(storedEmail);
+        }
+    }, []);
+
+    const checkAuthStatus = async (emailToCheck: string) => {
+        try {
+            const res = await fetch(`/api/auth/linkedin/status?email=${encodeURIComponent(emailToCheck)}`);
+            const data = await res.json();
+            setAuthStatus(data);
+            if (data.logged_in) {
+                setEmail(emailToCheck);
+            }
+        } catch (err) {
+            console.error('Failed to check auth status:', err);
+        }
+    };
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+
+        try {
+            const res = await fetch('/api/auth/linkedin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await res.json();
+
+            if (data.status === 'otp_required') {
+                // Show OTP modal
+                setSessionId(data.session_id);
+                setShowOTPModal(true);
+                setError('');
+            } else if (data.status === 'success') {
+                // Login successful
+                localStorage.setItem('linkedin_email', email);
+                setAuthStatus({ logged_in: true, user: data.user });
+                setError('');
+            } else {
+                setError(data.message || 'Login failed');
+            }
+        } catch (err) {
+            setError('Connection error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyOTP = async () => {
+        setLoading(true);
+        setError('');
+
+        try {
+            const res = await fetch('/api/auth/linkedin/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    otp_code: otp || undefined
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                localStorage.setItem('linkedin_email', email);
+                setAuthStatus({ logged_in: true, user: data.user });
+                setShowOTPModal(false);
+                setOtp('');
+            } else if (data.status === 'pending') {
+                // Still waiting for mobile approval
+                setTimeout(handleVerifyOTP, 2000); // Poll every 2 seconds
+            } else {
+                setError(data.message || 'Verification failed');
+            }
+        } catch (err) {
+            setError('Verification error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem('linkedin_email');
+        setAuthStatus({ logged_in: false });
+        setEmail('');
+        setPassword('');
+    };
+
     return (
-        <button className="p-1 hover:bg-white/10 rounded">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
-        </button>
-    )
+        <div className="min-h-screen p-6 space-y-6 max-w-3xl mx-auto">
+            <div>
+                <h1 className="text-3xl font-bold text-gray-100">Settings</h1>
+                <p className="text-gray-400 mt-1">Manage your LinkedIn integration</p>
+            </div>
+
+            {/* LinkedIn Connection Card */}
+            <div className="glass-card p-6 rounded-xl border border-white/10">
+                <div className="flex items-center gap-3 mb-6">
+                    <LinkedinIcon className="w-6 h-6 text-[#0077b5]" />
+                    <h2 className="text-xl font-bold text-gray-100">LinkedIn Account</h2>
+                </div>
+
+                {authStatus.logged_in ? (
+                    // Connected State
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                            <div className="flex items-center gap-3">
+                                <CheckCircle className="w-5 h-5 text-green-400" />
+                                <div>
+                                    <p className="font-medium text-gray-200">{authStatus.user?.name}</p>
+                                    <p className="text-sm text-gray-400">{authStatus.user?.email}</p>
+                                </div>
+                            </div>
+                            <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm font-medium">
+                                Connected
+                            </span>
+                        </div>
+
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-red-400 transition-colors"
+                        >
+                            <LogOut className="w-4 h-4" />
+                            Disconnect LinkedIn
+                        </button>
+                    </div>
+                ) : (
+                    // Login Form
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        {error && (
+                            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400 text-sm">
+                                <AlertCircle className="w-4 h-4" />
+                                {error}
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                LinkedIn Email
+                            </label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="your.email@example.com"
+                                required
+                                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                                required
+                                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 rounded-lg text-white font-medium transition-colors"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Connecting...
+                                </>
+                            ) : (
+                                <>
+                                    <Lock className="w-4 h-4" />
+                                    Connect LinkedIn
+                                </>
+                            )}
+                        </button>
+
+                        <p className="text-xs text-gray-500 text-center">
+                            We'll ask for OTP verification if LinkedIn requires it.
+                        </p>
+                    </form>
+                )}
+            </div>
+
+            {/* OTP Modal */}
+            {showOTPModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-gray-900 border border-white/10 rounded-xl p-6 max-w-md w-full shadow-2xl">
+                        <h3 className="text-xl font-bold text-gray-100 mb-2">Verify Your Identity</h3>
+                        <p className="text-gray-400 text-sm mb-6">
+                            LinkedIn requires verification. Enter the code sent to your email or tap "Yes" on your phone.
+                        </p>
+
+                        {error && (
+                            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400 text-sm">
+                                <AlertCircle className="w-4 h-4" />
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                OTP Code (optional if using mobile)
+                            </label>
+                            <input
+                                type="text"
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                placeholder="123456"
+                                maxLength={6}
+                                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-100 text-center text-2xl tracking-widest placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowOTPModal(false);
+                                    setOtp('');
+                                    setError('');
+                                }}
+                                className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleVerifyOTP}
+                                disabled={loading}
+                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 rounded-lg text-white font-medium transition-colors flex items-center justify-center gap-2"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Verifying...
+                                    </>
+                                ) : (
+                                    'Verify'
+                                )}
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-gray-500 text-center mt-4">
+                            If you're using mobile notification, it may take a few moments. We'll check automatically.
+                        </p>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }
