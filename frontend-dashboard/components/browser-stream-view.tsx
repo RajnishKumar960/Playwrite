@@ -70,6 +70,7 @@ export function BrowserStreamView() {
             const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
             const wsHost = backendUrl.replace(/^https?:\/\//, '');
             const wsUrl = `${wsProtocol}://${wsHost}/ws/stream`;
+            console.log('[WebSocket] Connecting to:', wsUrl); // Debug log
             ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
