@@ -184,6 +184,7 @@ def settings():
         return jsonify({"status": "ok"})
     return jsonify({
         "linkedinEmail": os.getenv("LINKEDIN_EMAIL", ""),
+        "hasPassword": bool(os.getenv("LINKEDIN_PASSWORD")),
         "googleSheetId": os.getenv("GOOGLE_SHEET_ID", "")
     })
 

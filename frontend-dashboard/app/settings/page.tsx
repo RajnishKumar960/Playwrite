@@ -1,289 +1,153 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Lock, LogOut, CheckCircle, Loader2, AlertCircle, LinkedinIcon } from 'lucide-react';
+import { CheckCircle, AlertCircle, LinkedinIcon, Settings as SettingsIcon } from 'lucide-react';
 
-// Get backend URL from environment variable
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
-interface LinkedInAuth {
-    logged_in: boolean;
-    user?: {
-        name: string;
-        email: string;
-    };
-}
-
 export default function SettingsPage() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [authStatus, setAuthStatus] = useState<LinkedInAuth>({ logged_in: false });
-    const [showOTPModal, setShowOTPModal] = useState(false);
-    const [otp, setOtp] = useState('');
-    const [sessionId, setSessionId] = useState('');
+    const [envStatus, setEnvStatus] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-    // Check LinkedIn auth status on mount
     useEffect(() => {
-        const storedEmail = localStorage.getItem('linkedin_email');
-        if (storedEmail) {
-            checkAuthStatus(storedEmail);
-        }
+        checkEnvConfig();
     }, []);
 
-    const checkAuthStatus = async (emailToCheck: string) => {
+    const checkEnvConfig = async () => {
         try {
-            const res = await fetch(`${BACKEND_URL}/api/auth/linkedin/status?email=${encodeURIComponent(emailToCheck)}`);
+            const res = await fetch(`${BACKEND_URL}/api/settings`);
             const data = await res.json();
-            setAuthStatus(data);
-            if (data.logged_in) {
-                setEmail(emailToCheck);
-            }
+            setEnvStatus(data);
         } catch (err) {
-            console.error('Failed to check auth status:', err);
-        }
-    };
-
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-
-        try {
-            const res = await fetch(`${BACKEND_URL}/api/auth/linkedin/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-
-            const data = await res.json();
-
-            if (data.status === 'otp_required') {
-                // Show OTP modal
-                setSessionId(data.session_id);
-                setShowOTPModal(true);
-                setError('');
-            } else if (data.status === 'success') {
-                // Login successful
-                localStorage.setItem('linkedin_email', email);
-                setAuthStatus({ logged_in: true, user: data.user });
-                setError('');
-            } else {
-                setError(data.message || 'Login failed');
-            }
-        } catch (err) {
-            setError(`Connection error. Backend: ${BACKEND_URL}`);
+            console.error('Failed to fetch settings:', err);
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleVerifyOTP = async () => {
-        setLoading(true);
-        setError('');
-
-        try {
-            const res = await fetch('/api/auth/linkedin/verify-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    session_id: sessionId,
-                    otp_code: otp || undefined
-                })
-            });
-
-            const data = await res.json();
-
-            if (data.status === 'success') {
-                localStorage.setItem('linkedin_email', email);
-                setAuthStatus({ logged_in: true, user: data.user });
-                setShowOTPModal(false);
-                setOtp('');
-            } else if (data.status === 'pending') {
-                // Still waiting for mobile approval
-                setTimeout(handleVerifyOTP, 2000); // Poll every 2 seconds
-            } else {
-                setError(data.message || 'Verification failed');
-            }
-        } catch (err) {
-            setError('Verification error. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem('linkedin_email');
-        setAuthStatus({ logged_in: false });
-        setEmail('');
-        setPassword('');
     };
 
     return (
         <div className="min-h-screen p-6 space-y-6 max-w-3xl mx-auto">
             <div>
                 <h1 className="text-3xl font-bold text-gray-100">Settings</h1>
-                <p className="text-gray-400 mt-1">Manage your LinkedIn integration</p>
+                <p className="text-gray-400 mt-1">Environment configuration status</p>
             </div>
 
-            {/* LinkedIn Connection Card */}
+            {/* LinkedIn Configuration Card */}
             <div className="glass-card p-6 rounded-xl border border-white/10">
                 <div className="flex items-center gap-3 mb-6">
                     <LinkedinIcon className="w-6 h-6 text-[#0077b5]" />
                     <h2 className="text-xl font-bold text-gray-100">LinkedIn Account</h2>
                 </div>
 
-                {authStatus.logged_in ? (
-                    // Connected State
+                {loading ? (
+                    <div className="text-gray-400">Loading configuration...</div>
+                ) : (
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                        {/* Email Status */}
+                        <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/5">
                             <div className="flex items-center gap-3">
-                                <CheckCircle className="w-5 h-5 text-green-400" />
+                                {envStatus?.linkedinEmail ? (
+                                    <CheckCircle className="w-5 h-5 text-green-400" />
+                                ) : (
+                                    <AlertCircle className="w-5 h-5 text-red-400" />
+                                )}
                                 <div>
-                                    <p className="font-medium text-gray-200">{authStatus.user?.name}</p>
-                                    <p className="text-sm text-gray-400">{authStatus.user?.email}</p>
+                                    <p className="font-medium text-gray-200">LinkedIn Email</p>
+                                    <p className="text-sm text-gray-400">
+                                        {envStatus?.linkedinEmail ? envStatus.linkedinEmail : 'Not configured'}
+                                    </p>
                                 </div>
                             </div>
-                            <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm font-medium">
-                                Connected
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${envStatus?.linkedinEmail
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : 'bg-red-500/20 text-red-400'
+                                }`}>
+                                {envStatus?.linkedinEmail ? 'Configured' : 'Missing'}
                             </span>
                         </div>
 
-                        <button
-                            onClick={handleLogout}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-red-400 transition-colors"
-                        >
-                            <LogOut className="w-4 h-4" />
-                            Disconnect LinkedIn
-                        </button>
-                    </div>
-                ) : (
-                    // Login Form
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        {error && (
-                            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400 text-sm">
-                                <AlertCircle className="w-4 h-4" />
-                                {error}
+                        {/* Password Status */}
+                        <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/5">
+                            <div className="flex items-center gap-3">
+                                {envStatus?.hasPassword ? (
+                                    <CheckCircle className="w-5 h-5 text-green-400" />
+                                ) : (
+                                    <AlertCircle className="w-5 h-5 text-red-400" />
+                                )}
+                                <div>
+                                    <p className="font-medium text-gray-200">LinkedIn Password</p>
+                                    <p className="text-sm text-gray-400">
+                                        {envStatus?.hasPassword ? '••••••••' : 'Not configured'}
+                                    </p>
+                                </div>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${envStatus?.hasPassword
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : 'bg-red-500/20 text-red-400'
+                                }`}>
+                                {envStatus?.hasPassword ? 'Configured' : 'Missing'}
+                            </span>
+                        </div>
+
+                        {/* Info Message */}
+                        <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                            <div className="flex gap-3">
+                                <SettingsIcon className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                                <div className="text-sm text-blue-300">
+                                    <p className="font-medium mb-1">Environment Variables</p>
+                                    <p className="text-blue-300/80">
+                                        LinkedIn credentials are configured via environment variables (LINKEDIN_EMAIL and LINKEDIN_PASSWORD).
+                                        Update these in your .env file locally or in Render dashboard for production.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Status Summary */}
+                        {envStatus?.linkedinEmail && envStatus?.hasPassword ? (
+                            <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 text-center">
+                                <p className="text-green-400 font-medium">✓ LinkedIn account configured and ready</p>
+                            </div>
+                        ) : (
+                            <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
+                                <p className="text-red-400 font-medium">✗ Please configure LinkedIn credentials in environment variables</p>
                             </div>
                         )}
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                LinkedIn Email
-                            </label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="your.email@example.com"
-                                required
-                                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                Password
-                            </label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
-                                required
-                                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 rounded-lg text-white font-medium transition-colors"
-                        >
-                            {loading ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    Connecting...
-                                </>
-                            ) : (
-                                <>
-                                    <Lock className="w-4 h-4" />
-                                    Connect LinkedIn
-                                </>
-                            )}
-                        </button>
-
-                        <p className="text-xs text-gray-500 text-center">
-                            We'll ask for OTP verification if LinkedIn requires it.
-                        </p>
-                    </form>
+                    </div>
                 )}
             </div>
 
-            {/* OTP Modal */}
-            {showOTPModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-gray-900 border border-white/10 rounded-xl p-6 max-w-md w-full shadow-2xl">
-                        <h3 className="text-xl font-bold text-gray-100 mb-2">Verify Your Identity</h3>
-                        <p className="text-gray-400 text-sm mb-6">
-                            LinkedIn requires verification. Enter the code sent to your email or tap "Yes" on your phone.
-                        </p>
-
-                        {error && (
-                            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400 text-sm">
-                                <AlertCircle className="w-4 h-4" />
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                OTP Code (optional if using mobile)
-                            </label>
-                            <input
-                                type="text"
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                placeholder="123456"
-                                maxLength={6}
-                                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-100 text-center text-2xl tracking-widest placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                            />
-                        </div>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowOTPModal(false);
-                                    setOtp('');
-                                    setError('');
-                                }}
-                                className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleVerifyOTP}
-                                disabled={loading}
-                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 rounded-lg text-white font-medium transition-colors flex items-center justify-center gap-2"
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Verifying...
-                                    </>
-                                ) : (
-                                    'Verify'
-                                )}
-                            </button>
-                        </div>
-
-                        <p className="text-xs text-gray-500 text-center mt-4">
-                            If you're using mobile notification, it may take a few moments. We'll check automatically.
-                        </p>
-                    </div>
+            {/* Google Sheets Card */}
+            <div className="glass-card p-6 rounded-xl border border-white/10">
+                <div className="flex items-center gap-3 mb-6">
+                    <svg className="w-6 h-6 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+                    </svg>
+                    <h2 className="text-xl font-bold text-gray-100">Google Sheets</h2>
                 </div>
-            )}
+
+                <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/5">
+                    <div className="flex items-center gap-3">
+                        {envStatus?.googleSheetId ? (
+                            <CheckCircle className="w-5 h-5 text-green-400" />
+                        ) : (
+                            <AlertCircle className="w-5 h-5 text-yellow-400" />
+                        )}
+                        <div>
+                            <p className="font-medium text-gray-200">Sheet ID</p>
+                            <p className="text-sm text-gray-400">
+                                {envStatus?.googleSheetId || 'Not configured'}
+                            </p>
+                        </div>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${envStatus?.googleSheetId
+                            ? 'bg-green-500/20 text-green-400'
+                            : 'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                        {envStatus?.googleSheetId ? 'Configured' : 'Optional'}
+                    </span>
+                </div>
+            </div>
         </div>
     );
 }
