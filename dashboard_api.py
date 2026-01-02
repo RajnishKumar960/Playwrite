@@ -1,7 +1,7 @@
 """Dashboard API Server for TSI Automations
-Handles agent control, logging, and WebSocket streaming.
+Handles agent control, logging, and Web"""
+TSI LinkedIn Automation Dashboard API
 """
-
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sock import Sock
@@ -15,6 +15,7 @@ import os
 import random
 import asyncio
 from lib.linkedin_auth import get_auth_instance
+from lib.session_manager import get_session_manager
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000", "http://localhost:3001"])
@@ -704,28 +705,54 @@ def linkedin_verify_otp():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/api/cookies/save', methods=['POST'])
+def save_cookies():
+    """Save LinkedIn cookies"""
+    try:
+        data = request.json
+        cookies = data.get('cookies')
+        
+        if not cookies:
+            return jsonify({'status': 'error', 'message': 'No cookies provided'}), 400
+        
+        # Parse if cookies is a string
+        if isinstance(cookies, str):
+            cookies = json.loads(cookies)
+        
+        session_mgr = get_session_manager()
+        success = session_mgr.save_cookies(cookies)
+        
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': f'Saved {len(cookies)} cookies',
+                'cookie_status': session_mgr.get_cookie_status()
+            }), 200
+        else:
+            return jsonify({'status': 'error', 'message': 'Failed to save cookies'}), 500
+            
+    except json.JSONDecodeError:
+        return jsonify({'status': 'error', 'message': 'Invalid JSON format'}), 400
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/cookies/status', methods=['GET'])
+def cookie_status():
+    """Get cookie status"""
+    try:
+        session_mgr = get_session_manager()
+        session_mgr.load_cookies()
+        status = session_mgr.get_cookie_status()
+        
+        return jsonify(status), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/auth/linkedin/status', methods=['GET'])
 def linkedin_status():
     """Check LinkedIn authentication status"""
     try:
-        # Check if session file exists
-        email = request.args.get('email')
-        if not email:
-            return jsonify({'logged_in': False}), 200
-        
-        import os.path
-        session_file = f'sessions/{email.replace("@", "_")}.json'
-        
-        if os.path.exists(session_file):
-            with open(session_file, 'r') as f:
-                import json
-                data = json.load(f)
-                
-            # Check if expired
-            from datetime import datetime
-            expires_at = datetime.fromisoformat(data['expires_at'])
-            if datetime.now() > expires_at:
-                os.remove(session_file)
                 return jsonify({'logged_in': False}), 200
             
             return jsonify({
