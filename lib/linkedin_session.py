@@ -59,22 +59,48 @@ class LinkedInSession:
             print(f"Error initializing browser: {e}")
             return False
     
-    async def ensure_logged_in(self, manual_login: bool = False) -> dict:
+    async def ensure_logged_in(self, manual_login: bool = False, quick_check: bool = False) -> dict:
         """
         Check if logged into LinkedIn, prompt login if needed
         
         Args:
             manual_login: Force manual login window to open
+            quick_check: Skip browser initialization, just check if profile exists
         
         Returns:
             dict with status and message
         """
         try:
-            if not self.context:
-                await self.init(headless=False if manual_login else True)
+            # For quick status check, just verify profile exists
+            if quick_check:
+                if self.profile_exists():
+                    return {
+                        'status': 'success',
+                        'logged_in': True,
+                        'message': 'Browser profile exists (session likely active)',
+                        'user_name': 'LinkedIn User'
+                    }
+                else:
+                    return {
+                        'status': 'login_required',
+                        'logged_in': False,
+                        'message': 'No browser profile found. Please login.'
+                    }
             
-            # Go to LinkedIn
-            await self.page.goto('https://www.linkedin.com/feed', wait_until='networkidle', timeout=10000)
+            # Full check with browser initialization
+            if not self.context:
+                await self.init(headless=True if not manual_login else False)
+            
+            # Go to LinkedIn with timeout
+            try:
+                await self.page.goto('https://www.linkedin.com/feed', wait_until='networkidle', timeout=15000)
+            except:
+                # Timeout or error - assume not logged in
+                return {
+                    'status': 'login_required',
+                    'logged_in': False,
+                    'message': 'Could not connect to LinkedIn. Please login.'
+                }
             
             current_url = self.page.url
             

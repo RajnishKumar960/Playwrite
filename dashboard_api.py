@@ -628,80 +628,6 @@ def logs_socket(ws):
     except:
         pass
 
-# LinkedIn Authentication Routes
-@app.route('/api/auth/linkedin/login', methods=['POST'])
-def linkedin_login():
-    """Start LinkedIn login process"""
-    try:
-        data = request.json
-        email = data.get('email')
-        password = data.get('password')
-        
-        if not email or not password:
-            return jsonify({'status': 'error', 'message': 'Email and password required'}), 400
-        
-        # Run async function in a separate thread with its own event loop
-        import concurrent.futures
-        import asyncio
-        
-        def run_async_login():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                auth = get_auth_instance()
-                result = loop.run_until_complete(auth.start_login(email, password))
-                return result
-            finally:
-                loop.close()
-        
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(run_async_login)
-            result = future.result(timeout=60)  # 60 second timeout
-        
-        if result['status'] == 'error':
-            return jsonify(result), 401
-        
-        return jsonify(result), 200
-        
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/auth/linkedin/verify-otp', methods=['POST'])
-def linkedin_verify_otp():
-    """Verify OTP code or check mobile approval"""
-    try:
-        data = request.json
-        session_id = data.get('session_id')
-        otp_code = data.get('otp_code')  # Optional
-        
-        if not session_id:
-            return jsonify({'status': 'error', 'message': 'Session ID required'}), 400
-        
-        # Run async function in a separate thread
-        import concurrent.futures
-        import asyncio
-        
-        def run_async_verify():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                auth = get_auth_instance()
-                result = loop.run_until_complete(auth.verify_otp(session_id, otp_code))
-                return result
-            finally:
-                loop.close()
-        
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(run_async_verify)
-            result = future.result(timeout=60)
-        
-        if result['status'] == 'error':
-            return jsonify(result), 401
-        
-        return jsonify(result), 200
-        
-    except Exception as e:
-
 # LinkedIn Persistent Browser Session Routes
 
 @app.route('/api/linkedin/status', methods=['GET'])
@@ -710,31 +636,30 @@ def linkedin_status():
     try:
         session = get_linkedin_session()
         
-        # Check if profile exists
-        profile_exists = session.profile_exists()
-        
-        if not profile_exists:
+        # Quick check - just verify profile exists (fast!)
+        if not session.profile_exists():
             return jsonify({
                 'logged_in': False,
                 'message': 'No browser profile found. Please login.',
                 'profile_exists': False
             }), 200
         
-        # Check actual login status
+        # Profile exists - do a quick check
         import concurrent.futures
         
         def check_login():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                result = loop.run_until_complete(session.ensure_logged_in())
+                # Use quick_check=True for fast status without opening browser
+                result = loop.run_until_complete(session.ensure_logged_in(quick_check=True))
                 return result
             finally:
                 loop.close()
         
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(check_login)
-            result = future.result(timeout=30)
+            result = future.result(timeout=5)  # 5 second timeout
         
         return jsonify({
             'logged_in': result.get('logged_in', False),
