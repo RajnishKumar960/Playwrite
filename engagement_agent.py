@@ -237,15 +237,31 @@ def run_engagement_loop(max_likes=10, headful=True, dry_run=False, safe_mode=Fal
         human_sleep(3)
         if streamer: streamer.capture_and_send()
         
-        # Check if actually logged in
-        if "/login" in page.url or "/checkpoint" in page.url:
-            msg = "Error: Not logged in. Please login via Settings page first."
-            print(msg)
-            if streamer:
-                streamer.send_log(msg, "error")
-                streamer.disconnect()
-            context.close()
-            return
+        # Check if actually logged in (with retry)
+        max_retries = 3
+        for retry in range(max_retries):
+            current_url = page.url
+            
+            if "/login" not in current_url and "/checkpoint" not in current_url:
+                # Successfully on feed
+                break
+            
+            if retry < max_retries - 1:
+                msg = f"Detected login/checkpoint URL (attempt {retry + 1}/{max_retries}), retrying..."
+                print(msg)
+                if streamer: streamer.send_log(msg, "warning")
+                human_sleep(3)
+                page.goto("https://www.linkedin.com/feed/", wait_until='networkidle')
+                human_sleep(2)
+            else:
+                # Final attempt failed
+                msg = "Error: Not logged in after retries. Session may have expired. Please login via Settings page."
+                print(msg)
+                if streamer:
+                    streamer.send_log(msg, "error")
+                    streamer.disconnect()
+                context.close()
+                return
         
         likes_performed = 0
         scrolls = 0
