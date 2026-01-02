@@ -215,9 +215,10 @@ def run_engagement_loop(max_likes=10, headful=True, dry_run=False, safe_mode=Fal
             return
         
         # Launch with persistent context
+        # NOTE: headless=True causes crashes, so we always run visible
         context = p.chromium.launch_persistent_context(
             user_data_dir=user_data_dir,
-            headless=not headful,
+            headless=False,  # Always visible - headless mode crashes
             slow_mo=50,
             args=['--no-sandbox', '--disable-setuid-sandbox'],
             viewport={"width": 1280, "height": 900}

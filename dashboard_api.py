@@ -468,7 +468,7 @@ def get_lead_stats():
 
 @app.route('/api/agents/start/feedWarmer', methods=['POST'])
 def start_feed_warmer():
-    return start_agent('feedWarmer', 'engagement_agent.py', ['--max', '50', '--headless', '--stream'])
+    return start_agent('feedWarmer', 'engagement_agent.py', ['--max', '50', '--stream'])
 
 @app.route('/api/agents/start/leadCampaign', methods=['POST'])
 def start_lead_campaign():
