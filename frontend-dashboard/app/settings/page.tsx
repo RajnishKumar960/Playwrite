@@ -65,8 +65,24 @@ export default function SettingsPage() {
     };
 
     const copyExtractionCommand = () => {
-        const command = 'python3 extract_linkedin_cookies.py';
-        navigator.clipboard.writeText(command);
+        const script = `(async function() {
+  const cookies = document.cookie.split('; ').map(c => {
+    const [name, value] = c.split('=');
+    return {
+      name,
+      value: decodeURIComponent(value),
+      domain: '.linkedin.com',
+      path: '/',
+      expires: Math.floor(Date.now()/1000) + (30*24*60*60),
+      httpOnly: false,
+      secure: true
+    };
+  });
+  await navigator.clipboard.writeText(JSON.stringify(cookies, null, 2));
+  console.log('✓ Copied ' + cookies.length + ' cookies!');
+  console.log(JSON.stringify(cookies, null, 2));
+})();`;
+        navigator.clipboard.writeText(script);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -116,8 +132,8 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                             <span className={`px-3 py-1 rounded-full text-sm font-medium ${cookieStatus?.has_cookies
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : 'bg-red-500/20 text-red-400'
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-red-500/20 text-red-400'
                                 }`}>
                                 {cookieStatus?.has_cookies ? 'Active' : 'Missing'}
                             </span>
@@ -171,25 +187,47 @@ export default function SettingsPage() {
                             <div className="text-sm text-blue-300 space-y-2">
                                 <p className="font-medium">How to get your cookies:</p>
                                 <ol className="list-decimal list-inside space-y-1 text-blue-300/80">
-                                    <li>Run the cookie extraction script locally</li>
-                                    <li>Login to LinkedIn when the browser opens</li>
-                                    <li>Copy the JSON output</li>
-                                    <li>Paste it below and click Save</li>
+                                    <li>Login to LinkedIn in your browser</li>
+                                    <li>Open Developer Console (F12 or Ctrl+Shift+I)</li>
+                                    <li>Go to "Console" tab</li>
+                                    <li>Paste the script below and press Enter</li>
+                                    <li>JSON will auto-copy - paste it here and Save</li>
                                 </ol>
 
-                                <div className="mt-3 p-3 rounded bg-black/30 font-mono text-xs flex items-center justify-between">
-                                    <code className="text-green-400">python3 extract_linkedin_cookies.py</code>
-                                    <button
-                                        onClick={copyExtractionCommand}
-                                        className="ml-2 p-1.5 rounded hover:bg-white/10 transition-colors"
-                                        title="Copy command"
-                                    >
-                                        {copied ? (
-                                            <Check className="w-4 h-4 text-green-400" />
-                                        ) : (
-                                            <Copy className="w-4 h-4 text-gray-400" />
-                                        )}
-                                    </button>
+                                <div className="mt-3 p-3 rounded bg-black/30 font-mono text-xs space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <code className="text-green-400">JavaScript Console Script:</code>
+                                        <button
+                                            onClick={copyExtractionCommand}
+                                            className="ml-2 p-1.5 rounded hover:bg-white/10 transition-colors"
+                                            title="Copy script"
+                                        >
+                                            {copied ? (
+                                                <Check className="w-4 h-4 text-green-400" />
+                                            ) : (
+                                                <Copy className="w-4 h-4 text-gray-400" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <div className="text-gray-300 overflow-x-auto max-h-32 overflow-y-auto">
+                                        {`(async function() {
+  const cookies = document.cookie.split('; ').map(c => {
+    const [name, value] = c.split('=');
+    return {
+      name,
+      value: decodeURIComponent(value),
+      domain: '.linkedin.com',
+      path: '/',
+      expires: Math.floor(Date.now()/1000) + (30*24*60*60),
+      httpOnly: false,
+      secure: true
+    };
+  });
+  await navigator.clipboard.writeText(JSON.stringify(cookies, null, 2));
+  console.log('✓ Copied ' + cookies.length + ' cookies!');
+  console.log(JSON.stringify(cookies, null, 2));
+})();`}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -211,8 +249,8 @@ export default function SettingsPage() {
                     {/* Message */}
                     {message && (
                         <div className={`p-3 rounded-lg ${message.startsWith('✓')
-                                ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-                                : 'bg-red-500/10 border border-red-500/20 text-red-400'
+                            ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+                            : 'bg-red-500/10 border border-red-500/20 text-red-400'
                             }`}>
                             {message}
                         </div>
