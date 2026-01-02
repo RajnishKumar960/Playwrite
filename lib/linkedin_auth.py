@@ -24,7 +24,15 @@ class LinkedInAuth:
         """Initialize Playwright browser"""
         if self.browser:
             return
+        
+        # Get or create event loop explicitly
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             
+        from playwright.async_api import async_playwright
         playwright = await async_playwright().start()
         self.browser = await playwright.chromium.launch(
             headless=True,
