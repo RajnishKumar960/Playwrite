@@ -599,22 +599,26 @@ def stream_socket(ws):
     add_log('system', 'Stream client connected', 'info')
     
     try:
+    try:
+        # Send initial connection message
+        ws.send(json.dumps({
+            'type': 'connection',
+            'status': 'connected',
+            'message': 'Browser stream connected'
+        }))
+        
         while True:
-            data = ws.receive()
-            if data:
-                try:
-                    msg = json.loads(data)
-                    # Broadcast to other clients
-                    for client in stream_clients:
-                        if client != ws:
-                            try:
-                                client.send(data)
-                            except:
-                                pass
-                except:
-                    pass
-    except:
-        pass
+            try:
+                # Keep connection alive - receive with timeout
+                data = ws.receive(timeout=1.0)
+                if data:
+                    # Echo back any received data
+                    ws.send(json.dumps({'type': 'echo', 'data': data}))
+            except:
+                # Timeout is normal, just continue
+                pass
+    except Exception as e:
+        print(f"Stream WebSocket error: {e}")
     finally:
         if ws in stream_clients:
             stream_clients.remove(ws)
