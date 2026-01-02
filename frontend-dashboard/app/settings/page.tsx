@@ -65,7 +65,7 @@ export default function SettingsPage() {
     };
 
     const copyExtractionCommand = () => {
-        const script = `(async function() {
+        const script = `(function() {
   const cookies = document.cookie.split('; ').map(c => {
     const [name, value] = c.split('=');
     return {
@@ -78,9 +78,12 @@ export default function SettingsPage() {
       secure: true
     };
   });
-  await navigator.clipboard.writeText(JSON.stringify(cookies, null, 2));
-  console.log('✓ Copied ' + cookies.length + ' cookies!');
+  console.clear();
+  console.log('%c✓ LinkedIn Cookies Extracted!', 'color: #10b981; font-size: 16px; font-weight: bold');
+  console.log('%cTotal cookies: ' + cookies.length, 'color: #6b7280');
+  console.log('%c\\n📋 Copy the JSON below:', 'color: #8b5cf6; font-weight: bold');
   console.log(JSON.stringify(cookies, null, 2));
+  console.log('%c\\n→ Right-click above → Copy object', 'color: #f59e0b');
 })();`;
         navigator.clipboard.writeText(script);
         setCopied(true);
@@ -210,7 +213,7 @@ export default function SettingsPage() {
                                         </button>
                                     </div>
                                     <div className="text-gray-300 overflow-x-auto max-h-32 overflow-y-auto">
-                                        {`(async function() {
+                                        {`(function() {
   const cookies = document.cookie.split('; ').map(c => {
     const [name, value] = c.split('=');
     return {
@@ -223,8 +226,9 @@ export default function SettingsPage() {
       secure: true
     };
   });
-  await navigator.clipboard.writeText(JSON.stringify(cookies, null, 2));
-  console.log('✓ Copied ' + cookies.length + ' cookies!');
+  console.clear();
+  console.log('%c✓ LinkedIn Cookies!', 'color: #10b981; font-size: 16px; font-weight: bold');
+  console.log('%cTotal: ' + cookies.length, 'color: #6b7280');
   console.log(JSON.stringify(cookies, null, 2));
 })();`}
                                     </div>
