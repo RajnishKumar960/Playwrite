@@ -1,5 +1,4 @@
-"""Dashboard API Server for TSI Automations
-Handles agent control, logging, and Web"""
+"""
 TSI LinkedIn Automation Dashboard API
 """
 from flask import Flask, jsonify, request
@@ -14,8 +13,7 @@ import json
 import os
 import random
 import asyncio
-from lib.linkedin_auth import get_auth_instance
-from lib.session_manager import get_session_manager
+from lib.linkedin_session import get_linkedin_session
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000", "http://localhost:3001"])
@@ -703,70 +701,89 @@ def linkedin_verify_otp():
         return jsonify(result), 200
         
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/cookies/save', methods=['POST'])
-def save_cookies():
-    """Save LinkedIn cookies"""
-    try:
-        data = request.json
-        cookies = data.get('cookies')
-        
-        if not cookies:
-            return jsonify({'status': 'error', 'message': 'No cookies provided'}), 400
-        
-        # Parse if cookies is a string
-        if isinstance(cookies, str):
-            cookies = json.loads(cookies)
-        
-        session_mgr = get_session_manager()
-        success = session_mgr.save_cookies(cookies)
-        
-        if success:
-            return jsonify({
-                'status': 'success',
-                'message': f'Saved {len(cookies)} cookies',
-                'cookie_status': session_mgr.get_cookie_status()
-            }), 200
-        else:
-            return jsonify({'status': 'error', 'message': 'Failed to save cookies'}), 500
-            
-    except json.JSONDecodeError:
-        return jsonify({'status': 'error', 'message': 'Invalid JSON format'}), 400
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+# LinkedIn Persistent Browser Session Routes
 
-@app.route('/api/cookies/status', methods=['GET'])
-def cookie_status():
-    """Get cookie status"""
-    try:
-        session_mgr = get_session_manager()
-        session_mgr.load_cookies()
-        status = session_mgr.get_cookie_status()
-        
-        return jsonify(status), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/auth/linkedin/status', methods=['GET'])
+@app.route('/api/linkedin/status', methods=['GET'])
 def linkedin_status():
-    """Check LinkedIn authentication status"""
+    """Check LinkedIn session status"""
     try:
-                return jsonify({'logged_in': False}), 200
-            
+        session = get_linkedin_session()
+        
+        # Check if profile exists
+        profile_exists = session.profile_exists()
+        
+        if not profile_exists:
             return jsonify({
-                'logged_in': True,
-                'user': {
-                    'email': email,
-                    'name': data.get('user_name', 'LinkedIn User')
-                }
+                'logged_in': False,
+                'message': 'No browser profile found. Please login.',
+                'profile_exists': False
             }), 200
         
-        return jsonify({'logged_in': False}), 200
+        # Check actual login status
+        import concurrent.futures
+        
+        def check_login():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(session.ensure_logged_in())
+                return result
+            finally:
+                loop.close()
+        
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(check_login)
+            result = future.result(timeout=30)
+        
+        return jsonify({
+            'logged_in': result.get('logged_in', False),
+            'message': result.get('message', ''),
+            'user_name': result.get('user_name'),
+            'profile_exists': True
+        }), 200
         
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({
+            'logged_in': False,
+            'message': f'Error: {str(e)}',
+            'profile_exists': False
+        }), 500
+
+@app.route('/api/linkedin/login', methods=['POST'])
+def linkedin_login():
+    """Trigger manual login window"""
+    try:
+        session = get_linkedin_session()
+        
+        # Open browser for manual login
+        import concurrent.futures
+        
+        def do_login():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(session.wait_for_login(timeout=300))
+                return result
+            finally:
+                loop.close()
+        
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(do_login)
+            result = future.result(timeout=310)  # Slightly longer than wait_for_login timeout
+        
+        if result['status'] == 'success':
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Login error: {str(e)}'
+        }), 500
+
+
 
 
 if __name__ == '__main__':
