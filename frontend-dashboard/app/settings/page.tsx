@@ -42,7 +42,10 @@ export default function SettingsPage() {
 
             if (data.status === 'success') {
                 setMessage(`✓ Login successful! Welcome, ${data.user_name}`);
-                await checkStatus();
+                // Refresh status immediately
+                setTimeout(() => checkStatus(), 1000);
+            } else if (data.status === 'timeout') {
+                setMessage(`⏱ ${data.message}`);
             } else {
                 setMessage(`Error: ${data.message}`);
             }
@@ -92,8 +95,8 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                             <span className={`px-3 py-1 rounded-full text-sm font-medium ${status?.logged_in
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : 'bg-yellow-500/20 text-yellow-400'
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-yellow-500/20 text-yellow-400'
                                 }`}>
                                 {status?.logged_in ? 'Active' : 'Inactive'}
                             </span>
@@ -132,10 +135,10 @@ export default function SettingsPage() {
                         {/* Message */}
                         {message && (
                             <div className={`p-3 rounded-lg ${message.startsWith('✓')
-                                    ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-                                    : message.startsWith('Error') || message.startsWith('Failed')
-                                        ? 'bg-red-500/10 border border-red-500/20 text-red-400'
-                                        : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'
+                                ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+                                : message.startsWith('Error') || message.startsWith('Failed')
+                                    ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+                                    : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'
                                 }`}>
                                 {message}
                             </div>

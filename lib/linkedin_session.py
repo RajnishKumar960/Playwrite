@@ -158,27 +158,41 @@ class LinkedInSession:
             print("\nSession will be saved automatically.")
             print("="*60 + "\n")
             
-            # Wait for login to complete (user navigates to feed)
-            try:
-                await self.page.wait_for_url('**/feed**', timeout=timeout * 1000)
+            # Wait for login to complete - check multiple possible URLs
+            login_successful = False
+            start_time = self.page.context.clock.time() if hasattr(self.page.context, 'clock') else None
+            
+            for i in range(timeout):
+                await asyncio.sleep(1)
+                current_url = self.page.url
                 
-                # Login successful
-                result = await self.ensure_logged_in()
-                
-                print("\n✓ Login successful! Session saved.")
-                print(f"✓ Logged in as: {result.get('user_name', 'LinkedIn User')}\n")
-                
-                return {
-                    'status': 'success',
-                    'message': 'Login successful. Session saved.',
-                    'user_name': result.get('user_name', 'LinkedIn User')
-                }
-                
-            except Exception as e:
+                # Check if we're on any LinkedIn authenticated page
+                if any(path in current_url for path in ['/feed', '/mynetwork', '/messaging', '/notifications', '/jobs']):
+                    login_successful = True
+                    break
+            
+            if not login_successful:
                 return {
                     'status': 'timeout',
-                    'message': f'Login timeout. Please try again. ({str(e)})'
+                    'message': 'Login timeout. Please try again.'
                 }
+            
+            # Login successful - get user info
+            result = await self.ensure_logged_in()
+            
+            print("\n✓ Login successful! Session saved.")
+            print(f"✓ Logged in as: {result.get('user_name', 'LinkedIn User')}")
+            print("✓ Browser will close in 2 seconds...\n")
+            
+            # Wait 2 seconds then close browser
+            await asyncio.sleep(2)
+            await self.close()
+            
+            return {
+                'status': 'success',
+                'message': 'Login successful. Session saved.',
+                'user_name': result.get('user_name', 'LinkedIn User')
+            }
                 
         except Exception as e:
             return {
