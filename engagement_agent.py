@@ -13,16 +13,14 @@ import random
 import time
 from lib.utils import human_sleep, smooth_scroll
 from lib.safety import safe_to_like, safe_to_comment
-from lib.auth import login
 from lib.openai_comments import generate_openai_comment
 from state_store import is_processed, mark_processed
 from agent_streaming import AgentStreamingRunner
+import asyncio
 
 # Load environment variables
 load_dotenv()
 
-LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
-LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 
 def find_posts_on_page(page):
     """Scan the current page for LinkedIn posts."""
@@ -193,10 +191,6 @@ def engage_with_post(page, post_item, should_comment=False, dry_run=False, safe_
     return True
 
 def run_engagement_loop(max_likes=10, headful=True, dry_run=False, safe_mode=False, stream=False):
-    if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
-        print("Error: credentials not found in null .env file.")
-        return
-
     streamer = None
     if stream:
         streamer = AgentStreamingRunner("engagementAgent")
@@ -207,30 +201,49 @@ def run_engagement_loop(max_likes=10, headful=True, dry_run=False, safe_mode=Fal
             streamer = None
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headful, slow_mo=50)
+        # Use persistent browser profile (already logged in from Settings)
+        user_data_dir = os.path.abspath('browser_profile')
         
-        # Load auth state if exists
-        storage_state = "auth.json" if os.path.exists("auth.json") else None
-        context = browser.new_context(viewport={"width": 1280, "height": 900}, storage_state=storage_state)
-        page = context.new_page()
+        if not os.path.exists(user_data_dir):
+            msg = "Error: No browser profile found. Please login via Settings page first."
+            print(msg)
+            if streamer:
+                streamer.send_log(msg, "error")
+                streamer.disconnect()
+            return
+        
+        # Launch with persistent context
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=not headful,
+            slow_mo=50,
+            args=['--no-sandbox', '--disable-setuid-sandbox'],
+            viewport={"width": 1280, "height": 900}
+        )
+        
+        page = context.pages[0] if context.pages else context.new_page()
         
         if streamer:
             streamer.set_page(page)
 
-        # Login
-        if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
-            msg = "Login failed. Please run in headful mode and verify manually if needed."
-            print(msg)
-            if streamer: streamer.send_log(msg, "error")
-            browser.close()
-            return
-
-        msg = "Logged in. Navigating to feed..."
+        # Go directly to feed (already logged in via persistent profile)
+        msg = "Using saved LinkedIn session. Navigating to feed..."
         print(msg)
         if streamer: streamer.send_log(msg)
+        
         page.goto("https://www.linkedin.com/feed/")
         human_sleep(3)
         if streamer: streamer.capture_and_send()
+        
+        # Check if actually logged in
+        if "/login" in page.url or "/checkpoint" in page.url:
+            msg = "Error: Not logged in. Please login via Settings page first."
+            print(msg)
+            if streamer:
+                streamer.send_log(msg, "error")
+                streamer.disconnect()
+            context.close()
+            return
         
         likes_performed = 0
         scrolls = 0
@@ -315,7 +328,7 @@ def run_engagement_loop(max_likes=10, headful=True, dry_run=False, safe_mode=Fal
         print(msg)
         if streamer: streamer.send_log(msg, "success")
         if streamer: streamer.disconnect()
-        browser.close()
+        context.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
