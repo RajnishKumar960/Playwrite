@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Lock, LogOut, CheckCircle, Loader2, AlertCircle, LinkedinIcon } from 'lucide-react';
 
+// Get backend URL from environment variable
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+
 interface LinkedInAuth {
     logged_in: boolean;
     user?: {
@@ -31,7 +34,7 @@ export default function SettingsPage() {
 
     const checkAuthStatus = async (emailToCheck: string) => {
         try {
-            const res = await fetch(`/api/auth/linkedin/status?email=${encodeURIComponent(emailToCheck)}`);
+            const res = await fetch(`${BACKEND_URL}/api/auth/linkedin/status?email=${encodeURIComponent(emailToCheck)}`);
             const data = await res.json();
             setAuthStatus(data);
             if (data.logged_in) {
@@ -48,7 +51,7 @@ export default function SettingsPage() {
         setError('');
 
         try {
-            const res = await fetch('/api/auth/linkedin/login', {
+            const res = await fetch(`${BACKEND_URL}/api/auth/linkedin/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -70,7 +73,7 @@ export default function SettingsPage() {
                 setError(data.message || 'Login failed');
             }
         } catch (err) {
-            setError('Connection error. Please try again.');
+            setError(`Connection error. Backend: ${BACKEND_URL}`);
         } finally {
             setLoading(false);
         }
