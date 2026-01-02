@@ -186,7 +186,6 @@ class LinkedInSession:
             
             # Wait for login to complete - check multiple possible URLs
             login_successful = False
-            start_time = self.page.context.clock.time() if hasattr(self.page.context, 'clock') else None
             
             for i in range(timeout):
                 await asyncio.sleep(1)
