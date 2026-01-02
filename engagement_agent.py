@@ -6,20 +6,22 @@ This agent fixes previous state management bugs and provides a reliable way to e
 """
 
 from playwright.sync_api import sync_playwright
-from dotenv import load_dotenv
 import argparse
 import os
 import random
 import time
 from lib.utils import human_sleep, smooth_scroll
 from lib.safety import safe_to_like, safe_to_comment
-from lib.openai_comments import generate_openai_comment
+try:
+    from lib.openai_comments import generate_openai_comment
+    HAS_OPENAI = True
+except:
+    HAS_OPENAI = False
+    def generate_openai_comment(post): 
+        return {"action": "SKIP", "reason": "OpenAI not available"}
 from state_store import is_processed, mark_processed
 from agent_streaming import AgentStreamingRunner
 import asyncio
-
-# Load environment variables
-load_dotenv()
 
 
 def find_posts_on_page(page):
