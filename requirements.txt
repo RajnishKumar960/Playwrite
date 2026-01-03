@@ -21,5 +21,9 @@ google-auth-httplib2==0.2.0
 # OpenAI for Comment Generation
 openai==1.58.0
 
+# WebSockets
+websocket-client
+requests
+
 # Utilities
 pyyaml==6.0.1

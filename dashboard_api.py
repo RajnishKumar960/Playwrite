@@ -76,6 +76,32 @@ def index():
 def health():
     return jsonify({"status": "ok"})
 
+@app.route('/api/stream/broadcast', methods=['POST'])
+def broadcast_to_stream():
+    """Receive data from agents and broadcast to WebSocket clients."""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"status": "error", "message": "No data"}), 400
+        
+        # Broadcast to all connected WebSocket clients
+        disconnected = []
+        for ws in stream_clients:
+            try:
+                ws.send(json.dumps(data))
+            except Exception as e:
+                print(f"Failed to send to client: {e}")
+                disconnected.append(ws)
+        
+        # Remove disconnected clients
+        for ws in disconnected:
+            if ws in stream_clients:
+                stream_clients.remove(ws)
+        
+        return jsonify({"status": "ok", "clients": len(stream_clients)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/agents/status', methods=['GET'])
 def get_agents_status():
     return jsonify({"agents": agent_status})

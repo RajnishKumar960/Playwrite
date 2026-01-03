@@ -195,7 +195,7 @@ def engage_with_post(page, post_item, should_comment=False, dry_run=False, safe_
 def run_engagement_loop(max_likes=10, headful=True, dry_run=False, safe_mode=False, stream=False):
     streamer = None
     if stream:
-        streamer = AgentStreamingRunner("engagementAgent")
+        streamer = AgentStreamingRunner("feedWarmer")  # Changed from "engagementAgent" to match dashboard
         if streamer.connect():
             streamer.send_log("Starting Engagement Agent...", "info")
         else:
@@ -215,10 +215,13 @@ def run_engagement_loop(max_likes=10, headful=True, dry_run=False, safe_mode=Fal
             return
         
         # Launch with persistent context
-        # NOTE: headless=True causes crashes, so we always run visible
+        # When streaming to dashboard, run headless so activity only shows in the dashboard
+        # When not streaming, show visible browser window
+        use_headless = stream  # Headless when streaming to dashboard
+        
         context = p.chromium.launch_persistent_context(
             user_data_dir=user_data_dir,
-            headless=False,  # Always visible - headless mode crashes
+            headless=use_headless,  # Headless when streaming, visible otherwise
             slow_mo=50,
             args=['--no-sandbox', '--disable-setuid-sandbox'],
             viewport={"width": 1280, "height": 900}

@@ -615,11 +615,11 @@ def run_lead_campaign(
     
     # Launch browser
     with sync_playwright() as p:
-        # If streaming, we might want headless=True even if user passed headful=True?
-        # Actually, user usually passes --headful via CLI, making headless=False.
-        # But dashboard passes --stream and usually expects headless behavior unless debug.
-        # We will respect the 'headful' arg.
-        browser = p.chromium.launch(headless=not headful, slow_mo=50)
+        # When streaming to dashboard, run headless so activity only shows in the dashboard
+        # When not streaming, respect the headful parameter
+        use_headless = stream or not headful  # Force headless when streaming
+        
+        browser = p.chromium.launch(headless=use_headless, slow_mo=50)
         
         # Try to load existing session
         storage_state = "auth.json" if os.path.exists("auth.json") else None

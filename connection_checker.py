@@ -136,7 +136,11 @@ def run_connection_checker(limit=25, duration=15, headful=True, dry_run=False, s
     checker = ConnectionChecker(headful=headful, dry_run=dry_run, streamer=streamer)
     
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headful, slow_mo=50)
+        # When streaming to dashboard, run headless so activity only shows in the dashboard
+        # When not streaming, respect the headful parameter
+        use_headless = stream or not headful  # Force headless when streaming
+        
+        browser = p.chromium.launch(headless=use_headless, slow_mo=50)
         storage_state = "auth.json" if os.path.exists("auth.json") else None
         context = browser.new_context(viewport={"width": 1280, "height": 900}, storage_state=storage_state)
         page = context.new_page()
