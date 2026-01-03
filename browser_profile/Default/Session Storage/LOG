@@ -1,3 +1,6 @@
-2026/01/03-19:21:49.743 f046 Reusing MANIFEST /home/ishan/Desktop/Playwrite/browser_profile/Default/Session Storage/MANIFEST-000001
-2026/01/03-19:21:49.744 f046 Recovering log #4
-2026/01/03-19:21:49.744 f046 Reusing old log /home/ishan/Desktop/Playwrite/browser_profile/Default/Session Storage/000004.log 
+2026/01/03-19:35:31.333 104ae Reusing MANIFEST /home/ishan/Desktop/Playwrite/browser_profile/Default/Session Storage/MANIFEST-000001
+2026/01/03-19:35:31.335 104ae Recovering log #4
+2026/01/03-19:35:31.336 104ae Reusing old log /home/ishan/Desktop/Playwrite/browser_profile/Default/Session Storage/000004.log 
+2026/01/03-19:59:39.947 104af Level-0 table #7: started
+2026/01/03-19:59:39.954 104af Level-0 table #7: 51622 bytes OK
+2026/01/03-19:59:39.961 104af Delete type=0 #4

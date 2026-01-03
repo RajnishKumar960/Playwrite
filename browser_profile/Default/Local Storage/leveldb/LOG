@@ -1,3 +1,3 @@
-2026/01/03-19:21:47.052 f046 Reusing MANIFEST /home/ishan/Desktop/Playwrite/browser_profile/Default/Local Storage/leveldb/MANIFEST-000001
-2026/01/03-19:21:47.073 f046 Recovering log #4
-2026/01/03-19:21:47.073 f046 Reusing old log /home/ishan/Desktop/Playwrite/browser_profile/Default/Local Storage/leveldb/000004.log 
+2026/01/03-19:35:29.529 104ae Reusing MANIFEST /home/ishan/Desktop/Playwrite/browser_profile/Default/Local Storage/leveldb/MANIFEST-000001
+2026/01/03-19:35:29.561 104ae Recovering log #4
+2026/01/03-19:35:29.561 104ae Reusing old log /home/ishan/Desktop/Playwrite/browser_profile/Default/Local Storage/leveldb/000004.log 
