@@ -66,6 +66,8 @@ def main():
     parser.add_argument(
         "--dry-run",
         action="store_true",
+        help="Run in dry-run mode (no actual actions)"
+    )
     parser.add_argument(
         "--stream",
         action="store_true",
