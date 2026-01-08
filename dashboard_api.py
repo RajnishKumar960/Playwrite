@@ -16,7 +16,24 @@ import asyncio
 from lib.linkedin_session import get_linkedin_session
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000", "http://localhost:3001"])
+
+# Support both local development and production
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://playwrightjan8.vercel.app",  # Production frontend
+]
+
+# Allow environment variable override for flexibility
+if os.getenv("FRONTEND_URL"):
+    allowed_origins.append(os.getenv("FRONTEND_URL"))
+
+CORS(app, 
+     origins=allowed_origins,
+     allow_credentials=True,  # Required for cookies/auth
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+
 sock = Sock(app)
 
 # State
