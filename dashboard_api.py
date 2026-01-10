@@ -13,7 +13,7 @@ import json
 import os
 import random
 import asyncio
-from lib.linkedin_session import get_linkedin_session
+# from lib.linkedin_session import get_linkedin_session  # Disabled - requires Playwright
 
 app = Flask(__name__)
 
@@ -676,84 +676,25 @@ def logs_socket(ws):
         pass
 
 # LinkedIn Persistent Browser Session Routes
+# NOTE: These routes are disabled in lightweight backend deployment
+# Clients should run agents locally with their own LinkedIn sessions
 
-@app.route('/api/linkedin/status', methods=['GET'])
-def linkedin_status():
-    """Check LinkedIn session status"""
-    try:
-        session = get_linkedin_session()
-        
-        # Quick check - just verify profile exists (fast!)
-        if not session.profile_exists():
-            return jsonify({
-                'logged_in': False,
-                'message': 'No browser profile found. Please login.',
-                'profile_exists': False
-            }), 200
-        
-        # Profile exists - do a quick check
-        import concurrent.futures
-        
-        def check_login():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                # Use quick_check=True for fast status without opening browser
-                result = loop.run_until_complete(session.ensure_logged_in(quick_check=True))
-                return result
-            finally:
-                loop.close()
-        
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(check_login)
-            result = future.result(timeout=5)  # 5 second timeout
-        
-        return jsonify({
-            'logged_in': result.get('logged_in', False),
-            'message': result.get('message', ''),
-            'user_name': result.get('user_name'),
-            'profile_exists': True
-        }), 200
-        
-    except Exception as e:
-        return jsonify({
-            'logged_in': False,
-            'message': f'Error: {str(e)}',
-            'profile_exists': False
-        }), 500
+# @app.route('/api/linkedin/status', methods=['GET'])
+# def linkedin_status():
+#     """Check LinkedIn session status"""
+#     return jsonify({
+#         'logged_in': False,
+#         'message': 'LinkedIn authentication handled client-side. Run agents locally.',
+#         'profile_exists': False
+#     }), 200
 
-@app.route('/api/linkedin/login', methods=['POST'])
-def linkedin_login():
-    """Trigger manual login window"""
-    try:
-        session = get_linkedin_session()
-        
-        # Open browser for manual login
-        import concurrent.futures
-        
-        def do_login():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                result = loop.run_until_complete(session.wait_for_login(timeout=300))
-                return result
-            finally:
-                loop.close()
-        
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(do_login)
-            result = future.result(timeout=310)  # Slightly longer than wait_for_login timeout
-        
-        if result['status'] == 'success':
-            return jsonify(result), 200
-        else:
-            return jsonify(result), 400
-            
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Login error: {str(e)}'
-        }), 500
+# @app.route('/api/linkedin/login', methods=['POST'])
+# def linkedin_login():
+#     """Trigger manual login window"""
+#     return jsonify({
+#         'status': 'error',
+#         'message': 'LinkedIn login handled client-side. Run agents locally with --stream flag.'
+#     }), 400
 
 
 
