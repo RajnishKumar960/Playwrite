@@ -21,7 +21,8 @@ app = Flask(__name__)
 allowed_origins = [
     "http://localhost:3000",
     "http://localhost:3001",
-    "https://playwrightjan8.vercel.app",  # Production frontend
+    "https://playwrightjan8.vercel.app",  # Old production frontend
+    "https://linkedinautomation-gold.vercel.app",  # New production frontend
 ]
 
 # Allow environment variable override for flexibility
