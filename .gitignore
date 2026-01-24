@@ -43,3 +43,6 @@ node_modules/
 Thumbs.db
 service_account.json
 sessions/
+
+# Browser profile and cache
+browser_profile/
