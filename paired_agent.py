@@ -11,14 +11,10 @@ from datetime import datetime, timedelta
 
 from lib.utils import human_sleep
 from lib.safety import safe_to_like, safe_to_comment
-from lib.auth import login
 from lib.openai_comments import generate_openai_comment
 from state_store import has_processed, mark_processed
 
 load_dotenv()
-
-LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
-LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 
 # Dashboard streaming
 _streamer = None
@@ -79,38 +75,32 @@ def run_paired_agent(max_likes=50, headful=True, dry_run=False, duration_minutes
             headful = False
     
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headful, slow_mo=50)
+        # Use persistent browser profile (already logged in from Settings)
+        user_data_dir = os.path.abspath('browser_profile')
         
-        storage_state = "auth.json" if os.path.exists("auth.json") else None
-        context = browser.new_context(
-            viewport={"width": 1280, "height": 900},
-            storage_state=storage_state
+        if not os.path.exists(user_data_dir):
+            msg = "Error: No browser profile found. Please login via Settings page first."
+            stream_log(msg, "error")
+            return
+        
+        # Launch with persistent context
+        use_headless = stream or not headful  # Headless when streaming
+        
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=use_headless,
+            slow_mo=50,
+            args=['--no-sandbox', '--disable-setuid-sandbox'],
+            viewport={"width": 1280, "height": 900}
         )
-        page = context.new_page()
+        
+        page = context.pages[0] if context.pages else context.new_page()
         
         if stream and _streaming_enabled:
             set_streaming_page(page)
         
-        # Login
-        if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
-            if headful:
-                stream_log("Login requires verification. Complete in browser.", "warning")
-                input("Press Enter when ready...")
-                try:
-                    page.wait_for_url("**/feed/**", timeout=30000)
-                except:
-                    stream_log("Could not reach feed", "error")
-                    browser.close()
-                    return
-            else:
-                stream_log("Login failed", "error")
-                browser.close()
-                return
-        
-        stream_log("Logged in successfully", "success")
-        capture_screenshot()
-        
-        # Navigate to feed
+        # Go directly to feed (already logged in via persistent profile)
+        stream_log("Using saved LinkedIn session. Navigating to feed...", "info")
         page.goto("https://www.linkedin.com/feed/", timeout=30000)
         human_sleep(2, 3)
         capture_screenshot()
@@ -233,13 +223,8 @@ def run_paired_agent(max_likes=50, headful=True, dry_run=False, duration_minutes
             page.evaluate("window.scrollBy(0, 800)")
             human_sleep(2, 4)
         
-        # Save session
-        try:
-            context.storage_state(path="auth.json")
-        except:
-            pass
-        
-        browser.close()
+        # Close context (session is automatically saved in persistent profile)
+        context.close()
     
     stop_streaming()
     

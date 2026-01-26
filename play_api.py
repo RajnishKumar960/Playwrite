@@ -29,7 +29,6 @@ DAILY_MAX_REQUESTS = int(os.getenv("DAILY_MAX_REQUESTS", "30"))
 
 # from paired_agent import run_campaign_logic  # Function doesn't exist, commenting out for deployment
 from lib.openai_comments import generate_openai_comment as make_comment_text
-from lib.auth import login
 
 
 def _resp_ok(data):
@@ -133,17 +132,29 @@ def send_request():
             results.append({"profile": profile, "status": "would_send", "note": bool(note)})
         return _resp_ok({"results": results})
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headful, slow_mo=40, args=['--disable-dev-shm-usage', '--no-sandbox'])
-        context = browser.new_context(viewport={"width": 1200, "height": 900})
-        page = context.new_page()
-        # login
-        if not login(page, os.getenv('LINKEDIN_EMAIL'), os.getenv('LINKEDIN_PASSWORD')):
-            if headful:
-                print("Please complete any verification in the opened browser and press Enter in the terminal to continue.")
-                input()
-            else:
-                browser.close()
-                return jsonify({"status": "error", "message": "Login failed, cannot send connection requests."}), 400
+        # Use persistent browser profile (already logged in from Settings)
+        user_data_dir = os.path.abspath('browser_profile')
+        
+        if not os.path.exists(user_data_dir):
+            return jsonify({"status": "error", "message": "No browser profile found. Please login via Settings page first."}), 400
+        
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=not headful,
+            slow_mo=40,
+            args=['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox'],
+            viewport={"width": 1200, "height": 900}
+        )
+        
+        page = context.pages[0] if context.pages else context.new_page()
+        
+        # Go directly to feed to verify login (already logged in via persistent profile)
+        page.goto("https://www.linkedin.com/feed/", timeout=30000)
+        
+        # Check if actually logged in
+        if "/login" in page.url or "/checkpoint" in page.url:
+            context.close()
+            return jsonify({"status": "error", "message": "Not logged in. Please login via Settings page first."}), 400
         
         try:
             for profile in profiles:
@@ -220,7 +231,7 @@ def send_request():
                     results.append({"profile": profile, "status": "error", "reason": str(e)})
         finally:
             try:
-                browser.close()
+                context.close()
             except Exception:
                 pass
 
@@ -239,19 +250,29 @@ def check_acceptance():
 
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headful, slow_mo=40, args=['--disable-dev-shm-usage', '--no-sandbox'])
-        context = browser.new_context(viewport={"width": 1200, "height": 900})
-        page = context.new_page()
-        if not login(page, os.getenv('LINKEDIN_EMAIL'), os.getenv('LINKEDIN_PASSWORD')):
-            if headful:
-                print("Please resolve verification and press Enter in the terminal to continue.")
-                input()
-            else:
-                try:
-                    browser.close()
-                except:
-                    pass
-                return jsonify({"status": "error", "message": "Login failed"}), 400
+        # Use persistent browser profile (already logged in from Settings)
+        user_data_dir = os.path.abspath('browser_profile')
+        
+        if not os.path.exists(user_data_dir):
+            return jsonify({"status": "error", "message": "No browser profile found. Please login via Settings page first."}), 400
+        
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=not headful,
+            slow_mo=40,
+            args=['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox'],
+            viewport={"width": 1200, "height": 900}
+        )
+        
+        page = context.pages[0] if context.pages else context.new_page()
+        
+        # Go directly to feed to verify login (already logged in via persistent profile)
+        page.goto("https://www.linkedin.com/feed/", timeout=30000)
+        
+        # Check if actually logged in
+        if "/login" in page.url or "/checkpoint" in page.url:
+            context.close()
+            return jsonify({"status": "error", "message": "Not logged in. Please login via Settings page first."}), 400
 
         try:
             for profile in profiles:
@@ -271,7 +292,7 @@ def check_acceptance():
                     results.append({"profile": profile, "accepted": False, "error": str(e)})
         finally:
             try:
-                browser.close()
+                context.close()
             except Exception:
                 pass
 
@@ -306,18 +327,29 @@ def warmup():
 
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headful, slow_mo=50)
-        context = browser.new_context(viewport={"width": 1280, "height": 900})
-        page = context.new_page()
+        # Use persistent browser profile (already logged in from Settings)
+        user_data_dir = os.path.abspath('browser_profile')
+        
+        if not os.path.exists(user_data_dir):
+            return jsonify({"status": "error", "message": "No browser profile found. Please login via Settings page first."}), 400
+        
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=not headful,
+            slow_mo=50,
+            args=['--no-sandbox', '--disable-setuid-sandbox'],
+            viewport={"width": 1280, "height": 900}
+        )
+        
+        page = context.pages[0] if context.pages else context.new_page()
 
-        # login
-        if not login(page, os.getenv('LINKEDIN_EMAIL'), os.getenv('LINKEDIN_PASSWORD')):
-            if headful:
-                print("Please resolve 2FA/captcha manually and press Enter to continue.")
-                input()
-            else:
-                browser.close()
-                return jsonify({"status": "error", "message": "Login failed"}), 400
+        # Go directly to feed to verify login (already logged in via persistent profile)
+        page.goto("https://www.linkedin.com/feed/", timeout=30000)
+        
+        # Check if actually logged in
+        if "/login" in page.url or "/checkpoint" in page.url:
+            context.close()
+            return jsonify({"status": "error", "message": "Not logged in. Please login via Settings page first."}), 400
 
         try:
             # Replaced custom loop with run_campaign_logic from paired_agent
@@ -356,7 +388,7 @@ def warmup():
 
         finally:
             try:
-                browser.close()
+                context.close()
             except Exception:
                 pass
 

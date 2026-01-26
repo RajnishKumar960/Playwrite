@@ -17,8 +17,6 @@ import os
 import time
 import random
 from typing import List, Dict
-from lib.auth import login
-
 # Optional Google sheets client
 try:
     import gspread
@@ -27,9 +25,6 @@ except Exception:
     gspread = None
 
 load_dotenv()
-
-LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
-LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 
 
 def _sleep(min_s=0.5, max_s=1.5):
@@ -162,25 +157,34 @@ def write_to_sheet(rows: List[Dict], sheet_id: str, worksheet_title: str = "Shee
 
 
 def run_scraper(department=None, industry=None, company=None, max_results=50, sheet_id=None, sales_nav: bool = False):
-    if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
-        raise SystemExit("Missing LINKEDIN_EMAIL/LINKEDIN_PASSWORD in .env — set them and try again.")
-
     query = _search_query(department, industry, company)
     url = _people_search_url(query)
 
     with sync_playwright() as p:
-        # HEADLESS=True and DISABLE SHM for container support
-        browser = p.chromium.launch(headless=True, slow_mo=50, args=['--disable-dev-shm-usage', '--no-sandbox'])
+        # Use persistent browser profile (already logged in from Settings)
+        user_data_dir = os.path.abspath('browser_profile')
         
-        # Try to load storage state if it exists
-        storage_state = "auth.json" if os.path.exists("auth.json") else None
-        context = browser.new_context(viewport={"width": 1280, "height": 900}, storage_state=storage_state)
+        if not os.path.exists(user_data_dir):
+            raise SystemExit("Error: No browser profile found. Please login via Settings page first.")
         
-        page = context.new_page()
+        # Launch with persistent context
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=True,
+            slow_mo=50,
+            args=['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox'],
+            viewport={"width": 1280, "height": 900}
+        )
+        
+        page = context.pages[0] if context.pages else context.new_page()
 
-        if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
-            print("Login did not go to feed — check 2FA/captcha. Aborting.")
-            browser.close()
+        # Go directly to feed to verify login (already logged in via persistent profile)
+        page.goto("https://www.linkedin.com/feed/", timeout=30000)
+        
+        # Check if actually logged in
+        if "/login" in page.url or "/checkpoint" in page.url:
+            print("Not logged in. Please login via Settings page first.")
+            context.close()
             return []
 
         # navigate to search URL (Sales Navigator if requested)
@@ -223,12 +227,9 @@ def run_scraper(department=None, industry=None, company=None, max_results=50, sh
                 print("Google Sheets write failed:", e)
 
         try:
-            browser.close()
+            context.close()
         except Exception:
-            try:
-                context.close()
-            except Exception:
-                pass
+            pass
 
         return results
 

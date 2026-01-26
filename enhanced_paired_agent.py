@@ -22,16 +22,12 @@ from dotenv import load_dotenv
 
 from lib.utils import human_sleep, smooth_scroll
 from lib.safety import safe_to_like, safe_to_comment
-from lib.auth import login
 from lib.openai_comments import generate_openai_comment
 from state_store import has_processed, mark_processed
 from agent_streaming import AgentStreamingRunner
 
 # Load .env
 load_dotenv()
-
-LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
-LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 
 def find_posts_on_page(page):
     """Return list of post ElementHandles and data snippets."""
@@ -308,35 +304,44 @@ def run_deep_feed_analysis(page, duration_minutes=30, max_likes=50, post_comment
 def run_enhanced_paired(duration_minutes=30, max_likes=50, headful=True, post_comments=False, safe_mode=True, stream=False):
     """Run the enhanced paired agent with deep feed analysis."""
     
-    if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
-        raise SystemExit("❌ Missing LINKEDIN_EMAIL/LINKEDIN_PASSWORD in .env")
-    
     streamer = None
     if stream:
         streamer = AgentStreamingRunner('feedWarmer')
         streamer.connect()
     
     with sync_playwright() as p:
+        # Use persistent browser profile (already logged in from Settings)
+        user_data_dir = os.path.abspath('browser_profile')
+        
+        if not os.path.exists(user_data_dir):
+            msg = "❌ Error: No browser profile found. Please login via Settings page first."
+            print(msg)
+            if streamer:
+                streamer.send_log(msg, "error")
+                streamer.disconnect()
+            return
+        
         # Launch headless if stream is enabled (user preference usually, but headless is better for server)
         # Dashboard requests --stream, so usually we go headless unless debugging
         # But user passed headful=True usually. Let's respect args.headful
-        browser = p.chromium.launch(headless=not headful, slow_mo=50)
+        use_headless = stream or not headful
         
-        storage_state = "auth.json" if os.path.exists("auth.json") else None
-        context = browser.new_context(
-            viewport={"width": 1280, "height": 900},
-            storage_state=storage_state
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=use_headless,
+            slow_mo=50,
+            args=['--no-sandbox', '--disable-setuid-sandbox'],
+            viewport={"width": 1280, "height": 900}
         )
-        page = context.new_page()
+        
+        page = context.pages[0] if context.pages else context.new_page()
         
         if streamer: streamer.set_page(page)
         
-        if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
-            print("❌ Login failed")
-            browser.close()
-            return
-        
-        print("✅ Logged in successfully")
+        # Go directly to feed (already logged in via persistent profile)
+        print("✅ Using saved LinkedIn session. Navigating to feed...")
+        if streamer: streamer.send_log("Using saved LinkedIn session", "info")
+        page.goto("https://www.linkedin.com/feed/", timeout=30000)
         human_sleep(3)
         if streamer: streamer.capture_and_send()
         
@@ -350,7 +355,7 @@ def run_enhanced_paired(duration_minutes=30, max_likes=50, headful=True, post_co
         )
         
         print("🔒 Closing browser...")
-        browser.close()
+        context.close()
         if streamer: streamer.disconnect()
 
 

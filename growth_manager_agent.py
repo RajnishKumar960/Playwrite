@@ -15,7 +15,6 @@ from typing import List, Dict
 from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
 
-from lib.auth import login
 from lib.utils import human_sleep, smooth_scroll
 from lib.safety import safe_to_like, safe_to_comment
 from lib.openai_comments import generate_openai_comment
@@ -33,8 +32,6 @@ from state_store import has_processed, mark_processed
 # Load environment variables
 load_dotenv()
 
-LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
-LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
 
 class GrowthManager:
@@ -282,19 +279,32 @@ def run_growth_cycle(max_connections=25, engagement_duration=30, headful=True, d
     manager = GrowthManager(headful=headful, dry_run=dry_run)
     
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headful, slow_mo=50)
-        storage_state = "auth.json" if os.path.exists("auth.json") else None
-        context = browser.new_context(viewport={"width": 1280, "height": 900}, storage_state=storage_state)
-        page = context.new_page()
+        # Use persistent browser profile (already logged in from Settings)
+        user_data_dir = os.path.abspath('browser_profile')
+        
+        if not os.path.exists(user_data_dir):
+            print("Error: No browser profile found. Please login via Settings page first.")
+            return
+        
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=not headful,
+            slow_mo=50,
+            args=['--no-sandbox', '--disable-setuid-sandbox'],
+            viewport={"width": 1280, "height": 900}
+        )
+        
+        page = context.pages[0] if context.pages else context.new_page()
 
-        if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
-            print("Login failed. Check session or credentials.")
-            if headful:
-                print("Press Enter once logged in...")
-                input()
-            else:
-                browser.close()
-                return
+        # Go directly to feed (already logged in via persistent profile)
+        print("Using saved LinkedIn session. Navigating to feed...")
+        page.goto("https://www.linkedin.com/feed/", timeout=30000)
+        
+        # Check if actually logged in
+        if "/login" in page.url or "/checkpoint" in page.url:
+            print("Not logged in. Please login via Settings page first.")
+            context.close()
+            return
 
         try:
             # Phase 1: Outreach
@@ -307,8 +317,8 @@ def run_growth_cycle(max_connections=25, engagement_duration=30, headful=True, d
             manager.print_report()
             
         finally:
-            context.storage_state(path="auth.json")
-            browser.close()
+            # Close context (session is automatically saved in persistent profile)
+            context.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Autonomous LinkedIn Growth Manager")

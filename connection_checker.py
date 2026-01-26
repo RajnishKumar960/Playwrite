@@ -13,7 +13,6 @@ from typing import List, Dict
 from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
 
-from lib.auth import login
 from lib.utils import human_sleep, smooth_scroll
 from lib.sheets_reader import read_leads, update_lead_status
 from lib.profile_posts import navigate_to_profile, get_connection_degree
@@ -24,8 +23,6 @@ from agent_streaming import AgentStreamingRunner
 # Load environment variables
 load_dotenv()
 
-LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
-LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
 
 class ConnectionChecker:
@@ -125,9 +122,6 @@ class ConnectionChecker:
         print("\nCheck Clean Up...")
 
 def run_connection_checker(limit=25, duration=15, headful=True, dry_run=False, stream=False):
-    if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
-        raise SystemExit("Missing credentials")
-
     streamer = None
     if stream:
         streamer = AgentStreamingRunner("connectionChecker")
@@ -136,32 +130,45 @@ def run_connection_checker(limit=25, duration=15, headful=True, dry_run=False, s
     checker = ConnectionChecker(headful=headful, dry_run=dry_run, streamer=streamer)
     
     with sync_playwright() as p:
+        # Use persistent browser profile (already logged in from Settings)
+        user_data_dir = os.path.abspath('browser_profile')
+        
+        if not os.path.exists(user_data_dir):
+            msg = "Error: No browser profile found. Please login via Settings page first."
+            print(msg)
+            if streamer:
+                streamer.send_log(msg, "error")
+                streamer.disconnect()
+            return
+        
         # When streaming to dashboard, run headless so activity only shows in the dashboard
         # When not streaming, respect the headful parameter
         use_headless = stream or not headful  # Force headless when streaming
         
-        browser = p.chromium.launch(headless=use_headless, slow_mo=50)
-        storage_state = "auth.json" if os.path.exists("auth.json") else None
-        context = browser.new_context(viewport={"width": 1280, "height": 900}, storage_state=storage_state)
-        page = context.new_page()
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=use_headless,
+            slow_mo=50,
+            args=['--no-sandbox', '--disable-setuid-sandbox'],
+            viewport={"width": 1280, "height": 900}
+        )
+        
+        page = context.pages[0] if context.pages else context.new_page()
         
         if streamer: streamer.set_page(page)
 
-        if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
-            print("Login failed")
-            browser.close()
-            if streamer: streamer.disconnect()
-            return
-
-        print("Logged in")
+        # Go directly to feed (already logged in via persistent profile)
+        print("Using saved LinkedIn session. Navigating to feed...")
+        if streamer: streamer.send_log("Using saved LinkedIn session", "info")
+        page.goto("https://www.linkedin.com/feed/", timeout=30000)
         if streamer: streamer.capture_and_send()
         human_sleep(2)
         
         try:
             checker.run_check_cycle(page, limit=limit, duration_minutes=duration)
         finally:
-            context.storage_state(path="auth.json")
-            browser.close()
+            # Close context (session is automatically saved in persistent profile)
+            context.close()
             if streamer: streamer.disconnect()
 
 if __name__ == "__main__":

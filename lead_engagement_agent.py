@@ -42,7 +42,6 @@ from typing import Dict, List, Optional
 
 from lib.utils import human_sleep, smooth_scroll
 from lib.safety import safe_to_like, safe_to_comment
-from lib.auth import login
 from lib.openai_comments import generate_openai_comment
 from lib.sheets_reader import (
     read_leads, 
@@ -82,9 +81,6 @@ from agent_streaming import AgentStreamingRunner
 
 # Load environment variables
 load_dotenv()
-
-LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
-LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 
 
 def engage_with_post(
@@ -549,9 +545,6 @@ def run_lead_campaign(
     if not sheet_id:
         raise SystemExit("No sheet_id provided. Set GOOGLE_SHEET_ID env var or pass --sheet")
     
-    if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
-        raise SystemExit("Missing LINKEDIN_EMAIL/LINKEDIN_PASSWORD in .env")
-    
     streamer = None
     if stream:
         streamer = AgentStreamingRunner("leadCampaign")
@@ -613,48 +606,39 @@ def run_lead_campaign(
         "success": True
     }
     
-    # Launch browser
+    # Launch browser with persistent profile from Settings
     with sync_playwright() as p:
+        # Use persistent browser profile (already logged in from Settings)
+        user_data_dir = os.path.abspath('browser_profile')
+        
+        if not os.path.exists(user_data_dir):
+            msg = "Error: No browser profile found. Please login via Settings page first."
+            print(msg)
+            if streamer:
+                streamer.send_log(msg, "error")
+                streamer.disconnect()
+            return {"leads_processed": 0, "success": False, "error": "No browser profile found. Please login via Settings."}
+        
         # When streaming to dashboard, run headless so activity only shows in the dashboard
         # When not streaming, respect the headful parameter
         use_headless = stream or not headful  # Force headless when streaming
         
-        browser = p.chromium.launch(headless=use_headless, slow_mo=50)
-        
-        # Try to load existing session
-        storage_state = "auth.json" if os.path.exists("auth.json") else None
-        context = browser.new_context(
-            viewport={"width": 1280, "height": 900},
-            storage_state=storage_state
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=use_headless,
+            slow_mo=50,
+            args=['--no-sandbox', '--disable-setuid-sandbox'],
+            viewport={"width": 1280, "height": 900}
         )
-        page = context.new_page()
+        
+        page = context.pages[0] if context.pages else context.new_page()
         
         if streamer: streamer.set_page(page)
 
-        # Login
-        if not login(page, LINKEDIN_EMAIL, LINKEDIN_PASSWORD):
-            if headful:
-                print("\nLogin requires manual verification. Complete 2FA/captcha in the browser.")
-                print("Press Enter when ready...")
-                try:
-                    input()
-                except Exception:
-                    pass
-                
-                try:
-                    page.wait_for_url("**/feed/**", timeout=30000)
-                except Exception:
-                    print("Could not reach feed. Aborting.")
-                    browser.close()
-                    if streamer: streamer.disconnect()
-                    return {"leads_processed": 0, "success": False, "error": "Login failed"}
-            else:
-                print("Login failed. Run with --headful to handle verification.")
-                browser.close()
-                if streamer: streamer.disconnect()
-                return {"leads_processed": 0, "success": False, "error": "Login failed"}
-        
-        print("\n✓ Logged in successfully\n")
+        # Go directly to feed (already logged in via persistent profile)
+        print("\n✓ Using saved LinkedIn session. Navigating to feed...\n")
+        if streamer: streamer.send_log("Using saved LinkedIn session", "info")
+        page.goto("https://www.linkedin.com/feed/", timeout=30000)
         if streamer: streamer.capture_and_send()
         human_sleep(2, 3)
         
@@ -703,11 +687,9 @@ def run_lead_campaign(
                 print(f"\n⏳ Waiting {wait_time:.0f}s before next lead...")
                 human_sleep(wait_time)
         
-        # Close browser
+        # Close context (session is automatically saved in persistent profile)
         try:
-            # Save session for next time
-            context.storage_state(path="auth.json")
-            browser.close()
+            context.close()
         except Exception:
             pass
         
