@@ -6,6 +6,8 @@ import {
     Users, MessageSquare, BarChart, Clock, CheckCircle2
 } from "lucide-react";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+
 export default function CampaignsPage() {
     const [campaigns, setCampaigns] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -17,7 +19,7 @@ export default function CampaignsPage() {
 
     const fetchCampaigns = async () => {
         try {
-            const res = await fetch("http://localhost:5000/api/campaigns");
+            const res = await fetch(`${BACKEND_URL}/api/campaigns`);
             const data = await res.json();
             setCampaigns(data.campaigns || []);
         } catch (error) {
