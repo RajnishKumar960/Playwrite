@@ -14,11 +14,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 const sidebarItems = [
     {
         title: "Dashboard",
-        href: "/",
+        href: "/dashboard",
         icon: LayoutDashboard,
     },
     {
@@ -119,13 +120,54 @@ export function Sidebar() {
             {/* Footer / User */}
             {!isCollapsed && (
                 <div className="p-4 border-t border-white/10 bg-white/5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 border border-white/20 shadow-inner"></div>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-medium text-white">Admin User</span>
-                            <span className="text-xs text-slate-500">Pro License</span>
+                    <SignedIn>
+                        <div className="flex items-center gap-3">
+                            <UserButton 
+                                appearance={{
+                                    elements: {
+                                        avatarBox: "w-8 h-8",
+                                        userButtonPopoverCard: "bg-slate-900 border border-slate-800",
+                                        userButtonPopoverActionButton: "text-slate-200 hover:bg-slate-800",
+                                    }
+                                }}
+                            />
+                            <div className="flex flex-col">
+                                <span className="text-sm font-medium text-white">Account</span>
+                                <span className="text-xs text-slate-500">Manage profile</span>
+                            </div>
                         </div>
-                    </div>
+                    </SignedIn>
+                    <SignedOut>
+                        <div className="flex items-center gap-3">
+                            <SignInButton mode="modal">
+                                <button className="w-full px-4 py-2 text-sm font-medium text-white bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded-lg transition-colors">
+                                    Sign In
+                                </button>
+                            </SignInButton>
+                        </div>
+                    </SignedOut>
+                </div>
+            )}
+            {isCollapsed && (
+                <div className="p-4 border-t border-white/10 bg-white/5 flex justify-center">
+                    <SignedIn>
+                        <UserButton 
+                            appearance={{
+                                elements: {
+                                    avatarBox: "w-8 h-8",
+                                    userButtonPopoverCard: "bg-slate-900 border border-slate-800",
+                                    userButtonPopoverActionButton: "text-slate-200 hover:bg-slate-800",
+                                }
+                            }}
+                        />
+                    </SignedIn>
+                    <SignedOut>
+                        <SignInButton mode="modal">
+                            <button className="w-8 h-8 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 flex items-center justify-center text-white text-xs">
+                                SI
+                            </button>
+                        </SignInButton>
+                    </SignedOut>
                 </div>
             )}
         </motion.div>
