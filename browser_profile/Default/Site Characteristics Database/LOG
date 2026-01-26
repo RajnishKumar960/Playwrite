@@ -1,3 +1,2 @@
-2026/01/26-17:22:00.083 3ac91 Reusing MANIFEST /home/ishan/Desktop/Playwrite/browser_profile/Default/Site Characteristics Database/MANIFEST-000001
-2026/01/26-17:22:00.092 3ac91 Recovering log #3
-2026/01/26-17:22:00.093 3ac91 Reusing old log /home/ishan/Desktop/Playwrite/browser_profile/Default/Site Characteristics Database/000003.log 
+2026/01/26-17:51:07.195 3d4f7 Creating DB /home/ishan/Desktop/Playwrite/browser_profile/Default/Site Characteristics Database since it was missing.
+2026/01/26-17:51:07.221 3d4f7 Reusing MANIFEST /home/ishan/Desktop/Playwrite/browser_profile/Default/Site Characteristics Database/MANIFEST-000001

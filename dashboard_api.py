@@ -13,7 +13,8 @@ import json
 import os
 import random
 import asyncio
-from lib.linkedin_session import get_linkedin_session
+import shutil
+from lib.linkedin_session import get_linkedin_session, reset_linkedin_session
 
 app = Flask(__name__)
 
@@ -753,6 +754,44 @@ def linkedin_login():
         return jsonify({
             'status': 'error',
             'message': f'Login error: {str(e)}'
+        }), 500
+
+@app.route('/api/linkedin/logout', methods=['POST'])
+def linkedin_logout():
+    """Delete persistent browser context and logout"""
+    try:
+        session = get_linkedin_session()
+        
+        # Delete the browser profile directory
+        success = session.delete_profile()
+        
+        if success:
+            # Reset the global session instance
+            reset_linkedin_session()
+            
+            # Also clean up any session files in the sessions directory
+            sessions_dir = Path('sessions')
+            if sessions_dir.exists():
+                try:
+                    shutil.rmtree(sessions_dir)
+                    print(f"✓ Deleted sessions directory: {sessions_dir}")
+                except Exception as e:
+                    print(f"Warning: Could not delete sessions directory: {e}")
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Logged out successfully. Browser profile and session data deleted.'
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to delete browser profile'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Logout error: {str(e)}'
         }), 500
 
 

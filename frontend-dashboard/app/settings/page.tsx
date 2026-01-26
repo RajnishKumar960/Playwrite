@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle, LinkedinIcon, LogIn, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, LinkedinIcon, LogIn, Loader2, LogOut } from 'lucide-react';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
@@ -9,6 +9,7 @@ export default function SettingsPage() {
     const [status, setStatus] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [loggingIn, setLoggingIn] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
     const [message, setMessage] = useState('');
 
     useEffect(() => {
@@ -53,6 +54,36 @@ export default function SettingsPage() {
             setMessage(`Error: ${err.message}`);
         } finally {
             setLoggingIn(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        if (!confirm('Are you sure you want to logout? This will delete your saved LinkedIn session and you will need to login again.')) {
+            return;
+        }
+
+        setLoggingOut(true);
+        setMessage('Logging out and deleting session...');
+
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/linkedin/logout`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                setMessage(`✓ ${data.message}`);
+                // Refresh status immediately
+                setTimeout(() => checkStatus(), 1000);
+            } else {
+                setMessage(`Error: ${data.message}`);
+            }
+        } catch (err: any) {
+            setMessage(`Error: ${err.message}`);
+        } finally {
+            setLoggingOut(false);
         }
     };
 
@@ -111,8 +142,8 @@ export default function SettingsPage() {
                             </div>
                         )}
 
-                        {/* Login Button */}
-                        {!status?.logged_in && (
+                        {/* Login/Logout Buttons */}
+                        {!status?.logged_in ? (
                             <button
                                 onClick={handleLogin}
                                 disabled={loggingIn}
@@ -127,6 +158,24 @@ export default function SettingsPage() {
                                     <>
                                         <LogIn className="w-5 h-5" />
                                         Login to LinkedIn
+                                    </>
+                                )}
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleLogout}
+                                disabled={loggingOut}
+                                className="w-full px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all flex items-center justify-center gap-2"
+                            >
+                                {loggingOut ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        Logging out...
+                                    </>
+                                ) : (
+                                    <>
+                                        <LogOut className="w-5 h-5" />
+                                        Logout & Delete Session
                                     </>
                                 )}
                             </button>

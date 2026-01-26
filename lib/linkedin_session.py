@@ -243,6 +243,37 @@ class LinkedInSession:
     def profile_exists(self) -> bool:
         """Check if browser profile folder exists"""
         return os.path.exists(self.user_data_dir) and os.path.isdir(self.user_data_dir)
+    
+    def delete_profile(self) -> bool:
+        """Delete the browser profile directory and reset session"""
+        try:
+            # Close any open browser contexts first
+            if self.context:
+                try:
+                    import asyncio
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(self.close())
+                    loop.close()
+                except:
+                    pass
+            
+            # Delete the profile directory
+            if os.path.exists(self.user_data_dir):
+                import shutil
+                shutil.rmtree(self.user_data_dir)
+                print(f"✓ Deleted browser profile: {self.user_data_dir}")
+            
+            # Reset instance variables
+            self.context = None
+            self.page = None
+            self._playwright = None
+            self._browser = None
+            
+            return True
+        except Exception as e:
+            print(f"Error deleting profile: {e}")
+            return False
 
 
 # Global session instance
@@ -254,3 +285,8 @@ def get_linkedin_session() -> LinkedInSession:
     if _linkedin_session is None:
         _linkedin_session = LinkedInSession()
     return _linkedin_session
+
+def reset_linkedin_session():
+    """Reset the global LinkedIn session instance"""
+    global _linkedin_session
+    _linkedin_session = None
