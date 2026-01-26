@@ -24,17 +24,20 @@ allowed_origins = [
     "http://localhost:3001",
     "https://playwrightjan8.vercel.app",  # Old production frontend
     "https://linkedinautomation-gold.vercel.app",  # New production frontend
+    "https://linkedinautomation20.vercel.app",  # Current production frontend
 ]
 
 # Allow environment variable override for flexibility
 if os.getenv("FRONTEND_URL"):
-    allowed_origins.append(os.getenv("FRONTEND_URL"))
+    frontend_urls = os.getenv("FRONTEND_URL").split(",")
+    allowed_origins.extend([url.strip() for url in frontend_urls])
 
 CORS(app, 
      origins=allowed_origins,
      allow_credentials=True,  # Required for cookies/auth
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+     allow_headers=["Content-Type", "Authorization", "X-API-KEY"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     expose_headers=["Content-Type", "Authorization"])
 
 sock = Sock(app)
 
